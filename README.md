@@ -292,3 +292,5 @@ _Add screenshots of the landing page, dashboard, analysis progress, results, rep
 Made as a university Software Engineering project. See [`docs/development.md`](docs/development.md) for the Git workflow and a suggested feature-by-feature commit plan.
 
 Prompt Shield provides secure prompt analysis and AI security insights.
+
+GitHub workflow demonstrated for the Prompt Shield software engineering project.
