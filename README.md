@@ -298,3 +298,5 @@ GitHub workflow demonstrated for the Prompt Shield software engineering project.
 Prompt Shield provides clear and detailed security analysis for potentially unsafe prompts.
 
 Issue improvement: Provide clearer feedback when potentially unsafe prompts are detected.
+
+Prompt Shield provides advanced security analysis for potentially unsafe prompts.
