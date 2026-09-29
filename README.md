@@ -296,5 +296,4 @@ Prompt Shield provides secure prompt analysis and AI security insights.
 GitHub workflow demonstrated for the Prompt Shield software engineering project.
 
 Issue improvement: Provide clearer feedback when potentially unsafe prompts are detected.
-
-Prompt Shield provides secure and clear analysis of potentially unsafe prompts.
+Prompt Shield provides intelligent security analysis for user prompts.
