@@ -295,4 +295,4 @@ Prompt Shield provides secure prompt analysis and AI security insights.
 
 GitHub workflow demonstrated for the Prompt Shield software engineering project.
 
-Feature branch: improved Prompt Shield documentation.
+Prompt Shield provides detailed security analysis for potentially unsafe prompts.
