@@ -294,3 +294,5 @@ Made as a university Software Engineering project. See [`docs/development.md`](d
 Prompt Shield provides secure prompt analysis and AI security insights.
 
 GitHub workflow demonstrated for the Prompt Shield software engineering project.
+
+Feature branch: improved Prompt Shield documentation.
