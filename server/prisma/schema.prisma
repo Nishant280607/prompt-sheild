@@ -1,0 +1,157 @@
+// Prompt Shield — database schema (Prisma ORM 7 + SQLite)
+// Run `npm run db:migrate` after changing this file to create a new migration.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// Registered application user.
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  /// Incremented when the password changes so previously issued JWTs stop working.
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  prompts Prompt[]
+}
+
+/// A logical prompt such as "Customer Support Assistant". Its text lives in versions.
+model Prompt {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  category    String   @default("GENERAL")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions PromptVersion[]
+
+  @@index([userId, updatedAt])
+}
+
+/// Immutable snapshot of a prompt's content (v1, v2, v3 ...).
+model PromptVersion {
+  id            String   @id @default(cuid())
+  promptId      String
+  versionNumber Int
+  content       String
+  changeNote    String?
+  /// EDITOR | UPLOAD | SEED
+  source        String   @default("EDITOR")
+  createdAt     DateTime @default(now())
+
+  prompt   Prompt     @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  analyses Analysis[]
+
+  @@unique([promptId, versionNumber])
+}
+
+/// One security analysis run for a specific prompt version.
+model Analysis {
+  id              String    @id @default(cuid())
+  promptVersionId String
+  /// PENDING | RUNNING | COMPLETED | FAILED
+  status          String    @default("PENDING")
+  /// LOCAL | AI_ENHANCED
+  mode            String    @default("LOCAL")
+  /// local | openai | gemini
+  provider        String    @default("local")
+  currentStage    String?
+  /// JSON array of pipeline stage events (see docs/security-scanning.md)
+  stageLog        String    @default("[]")
+  overallScore    Int?
+  riskLevel       String?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMs      Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  promptVersion   PromptVersion            @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  categoryResults AnalysisCategoryResult[]
+  recommendations Recommendation[]
+
+  @@index([promptVersionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Result produced by one scanner (security dimension) inside an analysis.
+model AnalysisCategoryResult {
+  id          String  @id @default(cuid())
+  analysisId  String
+  /// prompt_injection | jailbreak | information_leakage | consistency | token_cost
+  category    String
+  score       Int
+  riskLevel   String
+  detected    Boolean
+  /// Weight used for the overall score at analysis time (keeps old reports reproducible)
+  weight      Float
+  explanation String
+  /// JSON object with scanner-specific metrics
+  details     String  @default("{}")
+  durationMs  Float   @default(0)
+
+  analysis Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  findings Finding[]
+
+  @@unique([analysisId, category])
+}
+
+/// A single detected issue. Evidence is always stored masked.
+model Finding {
+  id               String @id @default(cuid())
+  categoryResultId String
+  ruleId           String
+  title            String
+  /// CRITICAL | HIGH | MEDIUM | LOW | INFO
+  severity         String
+  evidence         String
+  explanation      String
+  line             Int?
+  column           Int?
+  startOffset      Int?
+  endOffset        Int?
+  /// LOCAL | AI
+  source           String @default("LOCAL")
+
+  categoryResult AnalysisCategoryResult @relation(fields: [categoryResultId], references: [id], onDelete: Cascade)
+
+  @@index([categoryResultId])
+  @@index([severity])
+}
+
+/// Actionable recommendation generated from the findings of an analysis.
+model Recommendation {
+  id             String  @id @default(cuid())
+  analysisId     String
+  /// Catalog code, e.g. REC_REMOVE_SECRETS
+  code           String
+  category       String?
+  /// CRITICAL | HIGH | MEDIUM | LOW | INFO
+  priority       String
+  title          String
+  description    String
+  /// JSON array of concrete steps
+  actions        String  @default("[]")
+  /// JSON array of rule ids that triggered this recommendation
+  relatedRuleIds String  @default("[]")
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, code])
+}
