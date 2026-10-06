@@ -219,7 +219,7 @@ npm start            # run the compiled API (after npm run build)
 ## Running tests
 
 ```bash
-npm test             # backend (76 tests) + frontend tests
+npm test             # backend (78 tests) + frontend tests
 npm run test:server  # Vitest + Supertest
 npm run test:client  # Vitest + Testing Library
 npm run test:smoke   # end-to-end demo flow against a running API
@@ -238,7 +238,7 @@ Set these under **Project → Settings → Environment Variables**, then redeplo
 | `JWT_SECRET` | Yes | A long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`). Without it every new serverless instance signs people out. |
 | `DATABASE_URL` + `DATABASE_AUTH_TOKEN` | For permanent accounts | A free [Turso](https://turso.tech) database (`libsql://…` URL + token), or add the Turso integration from the Vercel Marketplace (it sets `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`). The tables are created automatically. |
 
-Without a database URL the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time). `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying.
+Without a database URL the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time). `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
 
 ## Demo credentials and demo flow
 

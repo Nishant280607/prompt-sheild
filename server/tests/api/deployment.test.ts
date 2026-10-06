@@ -6,10 +6,23 @@ import handler from '../../src/index.js';
 import { bearer } from '../helpers.js';
 
 /**
- * The Vercel entrypoint: a plain (req, res) handler that prepares the database (migrations +
- * demo account) on the first request, then serves the Express API.
+ * The Vercel entrypoint: a default-exported Express app that prepares the database
+ * (migrations + demo account) when the instance starts, then serves the API.
  */
 describe('Vercel serverless entrypoint', () => {
+  it('default-exports an Express application', () => {
+    expect(typeof handler).toBe('function');
+    expect(typeof (handler as unknown as { handle?: unknown }).handle).toBe('function');
+    expect(typeof handler.listen).toBe('function');
+  });
+
+  it('reports liveness and start-up state without needing the database', async () => {
+    await request(handler).get('/api/health'); // wait for start-up to finish
+    const res = await request(handler).get('/api/health/live');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ status: 'alive', startup: 'ready' });
+  });
+
   it('serves the API from its default export', async () => {
     const res = await request(handler).get('/api/health');
     expect(res.status).toBe(200);
