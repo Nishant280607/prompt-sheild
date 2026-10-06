@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { env } from '../config/env.js';
 import { SAMPLE_PROMPTS } from '../data/samplePrompts.js';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from '../middleware/auth.js';
@@ -19,7 +20,14 @@ export async function recommendations(req: Request, res: Response) {
 export async function health(_req: Request, res: Response) {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    sendSuccess(res, { status: 'ok', database: 'ok', uptimeSeconds: Math.round(process.uptime()) });
+    sendSuccess(res, {
+      status: 'ok',
+      database: 'ok',
+      // "temporary": data or sign-ins reset when the (serverless) instance restarts - see README.
+      storage: env.database.temporary ? 'temporary' : 'persistent',
+      sessions: env.jwtSecretPersistent ? 'persistent' : 'temporary',
+      uptimeSeconds: Math.round(process.uptime()),
+    });
   } catch {
     sendError(res, 503, 'DATABASE_UNAVAILABLE', 'The database is not reachable. Run `npm run setup` to initialise it.');
   }

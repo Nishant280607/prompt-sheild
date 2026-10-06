@@ -101,7 +101,7 @@ export default function LoginPage() {
         >
           Fill demo credentials
         </button>
-        <p className="mt-1 text-[11px] text-slate-500">Available after running the seed script (development data).</p>
+        <p className="mt-1 text-[11px] text-slate-500">Demo data, created automatically when the server starts.</p>
       </div>
 
       <p className="mt-6 text-center text-sm text-slate-400">

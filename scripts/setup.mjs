@@ -48,7 +48,9 @@ if (existsSync(envTarget)) {
 } else {
   const template = readFileSync(join(root, '.env.example'), 'utf8');
   const secret = randomBytes(48).toString('hex');
-  const env = template.replace(/^JWT_SECRET=.*$/m, `JWT_SECRET="${secret}"`);
+  let env = template.replace(/^JWT_SECRET=.*$/m, `JWT_SECRET="${secret}"`);
+  // --skip-seed also stops the server from creating the demo account on start-up.
+  if (args.has('--skip-seed')) env = env.replace(/^DEMO_ACCOUNT=.*$/m, 'DEMO_ACCOUNT="false"');
   writeFileSync(envTarget, env, { encoding: 'utf8', flag: 'wx' });
   console.log('  Created server/.env with a random JWT_SECRET.');
 }

@@ -1,6 +1,11 @@
 # Database design
 
-SQLite accessed through **Prisma ORM 7** (`server/prisma/schema.prisma`) using the `@prisma/adapter-better-sqlite3` driver adapter. Migrations live in `server/prisma/migrations` and are applied with `npm run db:deploy`.
+SQLite accessed through **Prisma ORM 7** (`server/prisma/schema.prisma`) using a driver adapter chosen from `DATABASE_URL`:
+
+- `file:` URLs → `@prisma/adapter-better-sqlite3` (local development, tests),
+- `libsql://` / `https://` URLs → `@prisma/adapter-libsql` over HTTP (a hosted [Turso](https://turso.tech) database, used for persistent data on Vercel).
+
+Migrations live in `server/prisma/migrations` and are applied with `npm run db:deploy`. The API also applies pending migrations itself on start-up (`server/src/db/migrate.ts`, recorded in Prisma's `_prisma_migrations` table), because serverless deployments have no CLI step: `scripts/embed-migrations.mjs` copies the SQL files into `src/generated/migrations.ts` on install and build.
 
 ## Entity relationships
 ```
@@ -27,10 +32,11 @@ All foreign keys use `ON DELETE CASCADE`: deleting a user removes their prompts,
 - **JSON columns** (`stageLog`, `details`, `actions`, `relatedRuleIds`) are stored as TEXT and parsed defensively.
 - **Indexes:** `Prompt(userId, updatedAt)`, `Analysis(promptVersionId)`, `Analysis(status)`, `Analysis(createdAt)`, `Finding(categoryResultId)`, `Finding(severity)`.
 - **Relative paths:** `DATABASE_URL="file:./dev.db"` is resolved from `server/` by both the Prisma CLI (`prisma.config.ts`) and the application, so both always use `server/dev.db`.
+- **Serverless hosts:** the deployment folder is read-only, so without a libSQL URL the API uses a temporary SQLite file in the system temp folder (reset whenever the instance restarts).
 
 ## Changing the schema
 ```bash
 # edit server/prisma/schema.prisma, then:
 npm run db:migrate -- --name describe_your_change   # creates + applies a migration, regenerates the client
 ```
-Commit the generated folder in `prisma/migrations`.
+Commit the generated folder in `prisma/migrations`. `db:migrate` also refreshes `src/generated/migrations.ts`, so deployed servers apply the new migration on their next start.

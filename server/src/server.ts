@@ -1,13 +1,12 @@
-import { createApp } from './app.js';
+import { createApp } from './createApp.js';
 import { env } from './config/env.js';
+import { prepareDatabase } from './db/bootstrap.js';
 import { prisma } from './lib/prisma.js';
 import { getAIStatus } from './services/ai/aiService.js';
-import { recoverInterruptedAnalyses } from './services/analysis.service.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
-  const recovered = await recoverInterruptedAnalyses();
-  if (recovered > 0) logger.warn(`Marked ${recovered} interrupted analysis run(s) as failed.`);
+  await prepareDatabase({ serverless: false });
 
   const app = createApp();
   const server = app.listen(env.PORT, () => {
@@ -31,7 +30,7 @@ async function main() {
 main().catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   if (/no such table|does not exist/i.test(message)) {
-    logger.error('The database has not been initialised. Run `npm run setup` (or `npm run db:deploy`) first.');
+    logger.error('The database is missing tables. Run `npm run setup` (or `npm run db:deploy`) first.');
   } else {
     logger.error('Failed to start the server', error);
   }

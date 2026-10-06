@@ -10,6 +10,9 @@ import apiRouter from './routes/index.js';
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
+  // Behind Vercel's proxy the client IP is in X-Forwarded-For; rate limits must key on it,
+  // not on the proxy's address (which would put every visitor in the same bucket).
+  app.set('trust proxy', env.trustProxy);
 
   app.use(helmet());
   app.use(

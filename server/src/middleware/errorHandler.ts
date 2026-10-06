@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { sendError } from '../utils/apiResponse.js';
+import { isUniqueConstraintError } from '../utils/dbErrors.js';
 import { logger } from '../utils/logger.js';
 
 export const notFoundHandler: RequestHandler = (req, res) => {
@@ -41,7 +42,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     sendError(res, 400, 'INVALID_JSON', 'The request body is not valid JSON.');
     return;
   }
-  if (known.code === 'P2002') {
+  if (isUniqueConstraintError(err)) {
     sendError(res, 409, 'CONFLICT', 'This record already exists.');
     return;
   }

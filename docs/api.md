@@ -8,7 +8,7 @@ Base URL: `http://localhost:5000/api`. Authenticated endpoints need `Authorizati
 { "success": false, "error": { "code": "PROMPT_INVALID", "message": "The prompt is empty.", "details": { } } }
 ```
 
-Common error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` / `INVALID_TOKEN` / `TOKEN_EXPIRED` / `SESSION_REVOKED` / `INVALID_CREDENTIALS` (401), `*_NOT_FOUND` (404), `EMAIL_IN_USE` / `NO_CHANGES` / `ANALYSIS_NOT_COMPLETE` (409), `FILE_TOO_LARGE` / `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_FILE_TYPE` (415), `PROMPT_INVALID` / `INVALID_JSON` / `EMPTY_FILE` / `NOT_ENOUGH_VERSIONS` (422), `RATE_LIMITED` (429), `PDF_GENERATION_FAILED` / `INTERNAL_ERROR` (500).
+Common error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` / `INVALID_TOKEN` / `TOKEN_EXPIRED` / `SESSION_REVOKED` / `INVALID_CREDENTIALS` (401), `*_NOT_FOUND` (404), `EMAIL_IN_USE` / `NO_CHANGES` / `ANALYSIS_NOT_COMPLETE` (409), `FILE_TOO_LARGE` / `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_FILE_TYPE` (415), `PROMPT_INVALID` / `INVALID_JSON` / `EMPTY_FILE` / `NOT_ENOUGH_VERSIONS` (422), `RATE_LIMITED` (429), `PDF_GENERATION_FAILED` / `INTERNAL_ERROR` (500), `DATABASE_UNAVAILABLE` / `SERVER_NOT_READY` (503 – the API could not start or reach its database; the message says why).
 
 ## Authentication
 | Method | Path | Body | Result |
@@ -59,7 +59,7 @@ Stage keys in order: `INITIALIZING, INJECTION, JAILBREAK, LEAKAGE, CONSISTENCY, 
 | --- | --- | --- |
 | GET | `/dashboard/summary` | Posture score, category averages, vulnerability and recommendation counts, token usage, trend, activity, recent analyses, analysis mode |
 | GET | `/recommendations` | Recommendations from the latest analysis of every prompt |
-| GET | `/health` | `{ status, database }` (public) |
+| GET | `/health` | `{ status, database, storage, sessions }` (public); `storage`/`sessions` are `persistent` or `temporary` |
 | GET | `/system/status` | Analysis mode, configured providers (booleans only), scanners, scoring weights (public) |
 | GET | `/samples` | Demo prompts used by the editor |
 

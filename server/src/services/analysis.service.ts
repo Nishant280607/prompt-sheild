@@ -260,10 +260,13 @@ export async function deleteAnalysis(userId: string, analysisId: string) {
   await prisma.analysis.delete({ where: { id: analysisId } });
 }
 
-/** Analyses interrupted by a server restart can never finish - mark them as failed on start-up. */
-export async function recoverInterruptedAnalyses(): Promise<number> {
+/**
+ * Analyses interrupted by a server restart can never finish - mark them as failed on start-up.
+ * With `staleBefore`, only runs whose last progress update is older than that date are failed.
+ */
+export async function recoverInterruptedAnalyses(staleBefore?: Date): Promise<number> {
   const result = await prisma.analysis.updateMany({
-    where: { status: { in: ['PENDING', 'RUNNING'] } },
+    where: { status: { in: ['PENDING', 'RUNNING'] }, ...(staleBefore ? { updatedAt: { lt: staleBefore } } : {}) },
     data: { status: 'FAILED', errorMessage: 'The analysis was interrupted by a server restart. Please run it again.' },
   });
   return result.count;

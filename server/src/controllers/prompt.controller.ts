@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import type { Request, Response } from 'express';
 import { getAuthUser } from '../middleware/auth.js';
 import { getAnalysisDetail, startAnalysis } from '../services/analysis.service.js';
@@ -76,6 +77,8 @@ export async function analyze(req: Request, res: Response) {
     sendSuccess(res, await getAnalysisDetail(userId, started.analysisId), 'Analysis complete.', 201);
     return;
   }
+  // On Vercel, keep the function alive until the background scan finishes (no-op elsewhere).
+  waitUntil(started.completion);
   sendSuccess(res, { analysisId: started.analysisId, status: started.status }, 'Analysis started.', 202);
 }
 

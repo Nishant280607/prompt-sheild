@@ -22,12 +22,13 @@ It runs completely offline in **Local Analysis Mode** (no API key needed). Addin
 10. [Database setup](#database-setup)
 11. [Running the backend and frontend](#running-the-backend-and-frontend)
 12. [Running tests](#running-tests)
-13. [Demo credentials and demo flow](#demo-credentials-and-demo-flow)
-14. [API overview](#api-overview)
-15. [Security notes](#security-notes)
-16. [Screenshots](#screenshots)
-17. [Limitations](#limitations)
-18. [Future enhancements](#future-enhancements)
+13. [Deploying to Vercel](#deploying-to-vercel)
+14. [Demo credentials and demo flow](#demo-credentials-and-demo-flow)
+15. [API overview](#api-overview)
+16. [Security notes](#security-notes)
+17. [Screenshots](#screenshots)
+18. [Limitations](#limitations)
+19. [Future enhancements](#future-enhancements)
 
 ---
 
@@ -134,6 +135,7 @@ prompt-shield/
 │   │   ├── config/            env, constants, scoring model
 │   │   ├── controllers/       HTTP handlers
 │   │   ├── data/              demo/sample prompts
+│   │   ├── db/                start-up migrations + demo account
 │   │   ├── lib/               Prisma client
 │   │   ├── middleware/        auth, validation, rate limits, upload, errors
 │   │   ├── models/            DTO mappers
@@ -143,7 +145,9 @@ prompt-shield/
 │   │   ├── types/             shared types
 │   │   ├── utils/             text, masking, tokens, responses
 │   │   ├── validators/        Zod request schemas
-│   │   ├── app.ts / server.ts
+│   │   ├── createApp.ts       Express app
+│   │   ├── server.ts          local server (npm run dev / npm start)
+│   │   ├── index.ts           Vercel serverless entrypoint
 │   └── tests/                 unit + API tests
 ├── docs/                      architecture, api, security-scanning, database, development
 ├── scripts/setup.mjs          one-command setup
@@ -165,6 +169,7 @@ npm run dev          # starts API (http://localhost:5000) and UI (http://localho
 ```
 
 > On first run Prisma downloads its migration engine for your OS (internet access needed once).
+> The API also applies any pending migrations itself when it starts, so `npm run dev` works on a fresh clone.
 
 ## Environment variables
 
@@ -174,10 +179,13 @@ npm run dev          # starts API (http://localhost:5000) and UI (http://localho
 | --------------------------------- | -------------------------- | -------------------------------------------------- |
 | `PORT`                            | `5000`                     | API port                                           |
 | `CLIENT_ORIGIN`                   | `http://localhost:5173`    | Allowed CORS origin(s), comma-separated            |
-| `DATABASE_URL`                    | `file:./dev.db`            | SQLite file, relative to `server/`                 |
-| `JWT_SECRET`                      | generated                  | Signing secret (≥ 32 chars required in production) |
+| `DATABASE_URL`                    | `file:./dev.db`            | SQLite file (relative to `server/`) or a Turso/libSQL URL (`libsql://…`) |
+| `DATABASE_AUTH_TOKEN`             | empty                      | Turso auth token (`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` also work) |
+| `JWT_SECRET`                      | generated                  | Signing secret (≥ 32 chars in production; if unset, a temporary one is used and sign-ins reset on restart) |
 | `JWT_EXPIRES_IN`                  | `8h`                       | Session length                                     |
 | `BCRYPT_ROUNDS`                   | `12`                       | Password hashing cost                              |
+| `DEMO_ACCOUNT`                    | `true`                     | Create the demo account on start-up when it is missing |
+| `TRUST_PROXY`                     | `1` on Vercel, else off    | Express `trust proxy` (client IP for rate limits)  |
 | `AI_PROVIDER`                     | `auto`                     | `auto` \| `local` \| `openai` \| `gemini`          |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | empty / `gpt-4o-mini`      | Optional AI Enhanced mode                          |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | empty / `gemini-2.5-flash` | Optional AI Enhanced mode                          |
@@ -211,7 +219,7 @@ npm start            # run the compiled API (after npm run build)
 ## Running tests
 
 ```bash
-npm test             # backend (55 tests) + frontend tests
+npm test             # backend (76 tests) + frontend tests
 npm run test:server  # Vitest + Supertest
 npm run test:client  # Vitest + Testing Library
 npm run test:smoke   # end-to-end demo flow against a running API
@@ -219,9 +227,22 @@ npm run lint         # ESLint for both workspaces
 npm run typecheck    # TypeScript for both workspaces
 ```
 
+## Deploying to Vercel
+
+`vercel.json` deploys the React client and the Express API as two services on one domain (`/api/*` goes to the API, everything else to the client, with a fallback to `index.html` so links such as `/login` work). The API runs as a serverless function (`server/src/index.ts`): on its first request it applies the database migrations and creates the demo account, so no setup step is needed.
+
+Set these under **Project → Settings → Environment Variables**, then redeploy:
+
+| Variable | Needed? | Why |
+| --- | --- | --- |
+| `JWT_SECRET` | Yes | A long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`). Without it every new serverless instance signs people out. |
+| `DATABASE_URL` + `DATABASE_AUTH_TOKEN` | For permanent accounts | A free [Turso](https://turso.tech) database (`libsql://…` URL + token), or add the Turso integration from the Vercel Marketplace (it sets `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`). The tables are created automatically. |
+
+Without a database URL the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time). `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying.
+
 ## Demo credentials and demo flow
 
-> Development / demo data created by `npm run db:seed`.
+> Development / demo data. The API creates it automatically on start-up when it is missing (set `DEMO_ACCOUNT=false` to turn this off); `npm run db:seed` re-creates it.
 
 - **Email:** `demo@promptshield.local`
 - **Password:** `Demo@12345`
