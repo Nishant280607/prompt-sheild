@@ -32,6 +32,19 @@ export const INJECTION_RULES: readonly PatternRule[] = [
     recommendation: 'REC_PROTECT_SYSTEM_PROMPT',
   },
   {
+    id: 'INJ-012',
+    title: 'Broad information disclosure demand',
+    severity: 'HIGH',
+    patterns: [
+      /\b(?:reveal|expose|disclose|divulge|dump|leak|exfiltrate|hand\s+over|spill|give\s+me|send\s+me)\b[^.!?\n]{0,25}?\b(?:all|every|everything|anything)\b[^.!?\n]{0,25}?\b(?:information|data|details?|records?|secrets?|credentials?|contents?|knowledge)\b/gi,
+      /\b(?:tell|show|give)\s+me\s+everything\b[^.!?\n]{0,30}?\b(?:you\s+(?:know|have|were\s+(?:told|given)|can\s+access|have\s+access\s+to)|about\s+(?:the\s+)?(?:system|users?|accounts?|database|customers?))\b/gi,
+    ],
+    accept: notDefensive,
+    explanation:
+      "The text demands disclosure of all information, data or secrets the model can reach. Over-broad disclosure requests are used to pull hidden context, other users' data or stored credentials out of an application.",
+    recommendation: 'REC_PROTECT_SYSTEM_PROMPT',
+  },
+  {
     id: 'INJ-003',
     title: 'Role manipulation',
     severity: 'MEDIUM',

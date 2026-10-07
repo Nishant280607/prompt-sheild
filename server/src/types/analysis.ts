@@ -21,6 +21,16 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   token_cost: 'Token Cost',
 };
 
+/**
+ * Categories that represent an actual security risk. Consistency and token cost
+ * are quality signals: they lower the average but must never, on their own, make
+ * a prompt look dangerous, and their findings are not counted as vulnerabilities.
+ */
+export const SECURITY_CATEGORIES = ['prompt_injection', 'jailbreak', 'information_leakage'] as const;
+export type SecurityCategory = (typeof SECURITY_CATEGORIES)[number];
+export const isSecurityCategory = (category: Category): category is SecurityCategory =>
+  (SECURITY_CATEGORIES as readonly Category[]).includes(category);
+
 export const ANALYSIS_STATUSES = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'] as const;
 export type AnalysisStatus = (typeof ANALYSIS_STATUSES)[number];
 

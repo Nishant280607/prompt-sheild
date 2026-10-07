@@ -2,7 +2,7 @@ import type { Prisma } from '../lib/prisma.js';
 import { maskSensitiveText } from '../scanners/patterns/leakage.patterns.js';
 import { bandForScore, computeOverallScore } from '../services/scoring.service.js';
 import type { Category, Severity, StageEvent } from '../types/analysis.js';
-import { CATEGORIES, CATEGORY_LABELS, SEVERITIES } from '../types/analysis.js';
+import { CATEGORIES, CATEGORY_LABELS, SEVERITIES, isSecurityCategory } from '../types/analysis.js';
 import { parseJson } from '../utils/json.js';
 import { getTextStats } from '../utils/tokens.js';
 
@@ -41,9 +41,27 @@ function countSeverities(categoryResults: ReadonlyArray<{ findings: ReadonlyArra
   return counts;
 }
 
+/**
+ * How many real vulnerabilities to report. Only security categories count, and only
+ * CRITICAL/HIGH/MEDIUM findings - a consistency or token-cost note is a quality signal,
+ * not a vulnerability, so it must not inflate this number.
+ */
+function countSecurityVulnerabilities(
+  categoryResults: ReadonlyArray<{ category: string; findings: ReadonlyArray<{ severity: string }> }>,
+) {
+  let count = 0;
+  for (const result of categoryResults) {
+    if (!isSecurityCategory(result.category as Category)) continue;
+    for (const finding of result.findings) {
+      if (finding.severity === 'CRITICAL' || finding.severity === 'HIGH' || finding.severity === 'MEDIUM') count += 1;
+    }
+  }
+  return count;
+}
+
 export function toAnalysisSummary(row: AnalysisSummaryRow) {
   const counts = countSeverities(row.categoryResults);
-  const vulnerabilityCount = counts.CRITICAL + counts.HIGH + counts.MEDIUM + counts.LOW;
+  const vulnerabilityCount = countSecurityVulnerabilities(row.categoryResults);
   const tokenDetails = parseJson<{ estimatedTokens?: number }>(
     row.categoryResults.find((c) => c.category === 'token_cost')?.details,
     {},
@@ -165,7 +183,7 @@ export function toAnalysisDetail(row: AnalysisDetailRow) {
       ? { weightedAverage: breakdown.weightedAverage, cap: breakdown.cap, capReason: breakdown.capReason, weights: breakdown.weights }
       : null,
     severityCounts: counts,
-    vulnerabilityCount: counts.CRITICAL + counts.HIGH + counts.MEDIUM + counts.LOW,
+    vulnerabilityCount: countSecurityVulnerabilities(row.categoryResults),
     categories,
     recommendations: [...row.recommendations]
       .sort((a, b) => severityRank(a.priority) - severityRank(b.priority))
