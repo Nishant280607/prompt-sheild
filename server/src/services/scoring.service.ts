@@ -1,4 +1,5 @@
 import type { Category, RiskLevel, Severity } from '../types/analysis.js';
+import { isSecurityCategory } from '../types/analysis.js';
 import {
   CATEGORY_WEIGHTS,
   SCORE_BANDS,
@@ -42,17 +43,26 @@ export function riskLevelForScore(score: number): RiskLevel {
   return bandForScore(score).riskLevel;
 }
 
-/** Maximum overall score allowed given the number of critical/high findings. */
-export function severityCap(criticalCount: number, highCount: number): { cap: number | null; reason: string | null } {
+/** Maximum overall score allowed given the number of critical/high/medium security findings. */
+export function severityCap(
+  criticalCount: number,
+  highCount: number,
+  mediumCount = 0,
+): { cap: number | null; reason: string | null } {
   if (criticalCount > 0) {
     const { base, stepPerExtra, floor } = SEVERITY_CAPS.CRITICAL;
     const cap = Math.max(floor, base - stepPerExtra * (criticalCount - 1));
-    return { cap, reason: `${criticalCount} critical finding${criticalCount > 1 ? 's' : ''} detected` };
+    return { cap, reason: `${criticalCount} critical security finding${criticalCount > 1 ? 's' : ''} detected` };
   }
   if (highCount > 0) {
     const { base, stepPerExtra, floor } = SEVERITY_CAPS.HIGH;
     const cap = Math.max(floor, base - stepPerExtra * (highCount - 1));
-    return { cap, reason: `${highCount} high-severity finding${highCount > 1 ? 's' : ''} detected` };
+    return { cap, reason: `${highCount} high-severity security finding${highCount > 1 ? 's' : ''} detected` };
+  }
+  if (mediumCount > 0) {
+    const { base, stepPerExtra, floor } = SEVERITY_CAPS.MEDIUM;
+    const cap = Math.max(floor, base - stepPerExtra * (mediumCount - 1));
+    return { cap, reason: `${mediumCount} medium-severity security finding${mediumCount > 1 ? 's' : ''} detected` };
   }
   return { cap: null, reason: null };
 }
@@ -63,19 +73,23 @@ export function computeOverallScore(categories: ReadonlyArray<ScoredCategory>): 
   let totalWeight = 0;
   let criticalCount = 0;
   let highCount = 0;
+  let mediumCount = 0;
 
   for (const result of categories) {
     const weight = CATEGORY_WEIGHTS[result.category];
     weightedSum += result.score * weight;
     totalWeight += weight;
+    // Only security categories can cap the score; quality signals just move the average.
+    if (!isSecurityCategory(result.category)) continue;
     for (const finding of result.findings) {
       if (finding.severity === 'CRITICAL') criticalCount += 1;
       if (finding.severity === 'HIGH') highCount += 1;
+      if (finding.severity === 'MEDIUM') mediumCount += 1;
     }
   }
 
   const weightedAverage = totalWeight > 0 ? weightedSum / totalWeight : 100;
-  const { cap, reason } = severityCap(criticalCount, highCount);
+  const { cap, reason } = severityCap(criticalCount, highCount, mediumCount);
   const capped = cap !== null && weightedAverage > cap;
   const score = Math.round(clamp(capped ? cap : weightedAverage));
   const band = bandForScore(score);

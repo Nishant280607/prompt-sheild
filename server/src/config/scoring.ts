@@ -8,9 +8,13 @@ import type { Category, RiskLevel, Severity } from '../types/analysis.js';
  *    (1 - SEVERITY_IMPACT[severity]). Multiplication gives diminishing returns, so many
  *    low findings never outweigh a single critical one.
  * 2. The overall score is the weighted average of the category scores (CATEGORY_WEIGHTS).
- * 3. Severity caps stop serious findings from being "averaged away":
- *    any CRITICAL finding caps the overall score at 40 (minus 10 per extra critical finding),
- *    any HIGH finding caps it at 70 (minus 5 per extra high finding).
+ * 3. Severity caps stop serious findings from being "averaged away". A finding in a
+ *    SECURITY category (injection, jailbreak, leakage) forces the overall score into the
+ *    matching risk band, so one real security issue can never read as "minimal risk":
+ *      - any CRITICAL security finding caps the score at 24 (Critical Risk), minus 6 per extra,
+ *      - any HIGH security finding caps it at 49 (High Risk), minus 6 per extra,
+ *      - any MEDIUM security finding caps it at 74 (Moderate), minus 4 per extra.
+ *    Consistency and token-cost findings never trigger a cap - they only move the average.
  *
  * These thresholds are classifications used by this project - they are not a guarantee of
  * real-world security.
@@ -32,8 +36,9 @@ export const SEVERITY_IMPACT: Record<Severity, number> = {
 };
 
 export const SEVERITY_CAPS = {
-  CRITICAL: { base: 40, stepPerExtra: 10, floor: 10 },
-  HIGH: { base: 70, stepPerExtra: 5, floor: 50 },
+  CRITICAL: { base: 24, stepPerExtra: 6, floor: 5 },
+  HIGH: { base: 49, stepPerExtra: 6, floor: 25 },
+  MEDIUM: { base: 74, stepPerExtra: 4, floor: 50 },
 } as const;
 
 export interface ScoreBand {
