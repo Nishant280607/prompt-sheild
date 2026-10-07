@@ -61,7 +61,7 @@ Stage keys in order: `INITIALIZING, INJECTION, JAILBREAK, LEAKAGE, CONSISTENCY, 
 | GET | `/recommendations` | Recommendations from the latest analysis of every prompt |
 | GET | `/health` | `{ status, database, storage, sessions }` (public); `storage`/`sessions` are `persistent` or `temporary` |
 | GET | `/health/live` | Liveness without the database: `{ status, startup, error? }` – on Vercel, shows whether start-up succeeded and at which step it failed (public) |
-| GET | `/system/status` | Analysis mode, configured providers (booleans only), scanners, scoring weights (public) |
+| GET | `/system/status` | Analysis mode, configured providers (booleans only), scanners, scoring weights, `deployment` (`storage` / `sessions`: `persistent` or `temporary`) (public) |
 | GET | `/samples` | Demo prompts used by the editor |
 
 ## Example

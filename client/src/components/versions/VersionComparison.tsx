@@ -32,7 +32,7 @@ const VERDICTS = {
 
 function VulnerabilityList({ title, items, tone }: { title: string; items: ComparedVulnerability[]; tone: 'added' | 'removed' | 'same' }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className={cn('text-xs font-semibold tracking-wider uppercase', tone === 'added' ? 'text-rose-300' : tone === 'removed' ? 'text-emerald-300' : 'text-slate-400')}>
         {title} ({items.length})
       </p>
@@ -46,7 +46,9 @@ function VulnerabilityList({ title, items, tone }: { title: string; items: Compa
                 <RiskBadge level={item.severity} kind="severity" />
                 <span className="text-sm text-slate-200">{item.title}</span>
               </div>
-              <p className="mt-1 truncate font-mono text-[11px] text-slate-500">{item.evidence}</p>
+              <p className="mt-1 truncate font-mono text-[11px] text-slate-500" title={item.evidence}>
+                {item.evidence}
+              </p>
             </li>
           ))}
         </ul>

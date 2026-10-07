@@ -86,7 +86,7 @@ export function ActivityChart({ data }: { data: Array<{ date: string; count: num
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={points} margin={{ top: 10, right: 8, left: -24, bottom: 0 }}>
         <CartesianGrid stroke={GRID} vertical={false} />
-        <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={1} />
+        <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={14} />
         <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
         <Tooltip {...TOOLTIP} cursor={{ fill: 'rgba(148,163,184,0.06)' }} formatter={(value) => [String(value), 'Analyses']} />
         <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="#818cf8" maxBarSize={22} />

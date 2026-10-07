@@ -13,7 +13,7 @@ import { useAsync, useDebouncedValue, useDocumentTitle } from '../hooks/useAsync
 import { analysisService } from '../services/analysisService';
 import type { AnalysisSummary } from '../types/api';
 import { cn } from '../utils/cn';
-import { formatDateTime } from '../utils/format';
+import { formatDate, formatTime } from '../utils/format';
 import { downloadBlob, getErrorMessage } from '../utils/helpers';
 import { scoreHex } from '../utils/risk';
 
@@ -66,13 +66,24 @@ export default function HistoryPage() {
       key: 'prompt',
       header: 'Prompt',
       render: (row) => (
-        <Link to={`/prompts/${row.prompt.id}`} className="font-medium text-slate-100 hover:text-accent" onClick={(e) => e.stopPropagation()}>
-          {row.prompt.title}
-        </Link>
+        <span>
+          <Link to={`/prompts/${row.prompt.id}`} className="font-medium text-slate-100 hover:text-accent" onClick={(e) => e.stopPropagation()}>
+            {row.prompt.title}
+          </Link>{' '}
+          <span className="font-mono text-xs whitespace-nowrap text-slate-500">v{row.version.versionNumber}</span>
+        </span>
       ),
     },
-    { key: 'version', header: 'Version', render: (row) => <span className="font-mono text-slate-300">v{row.version.versionNumber}</span> },
-    { key: 'date', header: 'Date', render: (row) => <span className="text-slate-400">{formatDateTime(row.createdAt)}</span> },
+    {
+      key: 'date',
+      header: 'Date',
+      render: (row) => (
+        <span className="whitespace-nowrap text-slate-400">
+          {formatDate(row.createdAt)}
+          <span className="block text-xs text-slate-500">{formatTime(row.createdAt)}</span>
+        </span>
+      ),
+    },
     {
       key: 'score',
       header: 'Score',
@@ -107,7 +118,7 @@ export default function HistoryPage() {
               <GitCompare className="h-4 w-4" />
             </button>
           </Tooltip>
-          <Tooltip content="Download PDF report">
+          <Tooltip content="Download PDF report" align="end">
             <Button variant="ghost" size="sm" loading={downloading === row.id} disabled={row.status !== 'COMPLETED'} onClick={() => downloadPdf(row)} aria-label="Download PDF report">
               {downloading === row.id ? null : <Download className="h-4 w-4" />}
             </Button>

@@ -180,6 +180,8 @@ export default function NewAnalysisPage() {
   if (editing && !existing) return <LoadingState label="Loading prompt" />;
 
   const invalid = validation !== null && !validation.valid && validatedFor === content;
+  // The picker shows the sample that is currently in the editor, and resets once the text is edited.
+  const activeSampleId = samples.find((sample) => sample.content === content)?.id ?? '';
 
   return (
     <div className="space-y-6">
@@ -224,29 +226,39 @@ export default function NewAnalysisPage() {
           </Card>
 
           <Card className="p-5">
-            <CardHeader
-              title="Prompt content"
-              subtitle="Line numbers, template placeholders and pre-scan highlights"
-              action={
-                <div className="flex items-center gap-2">
-                  <label htmlFor="sample" className="sr-only">
-                    Load a sample prompt
-                  </label>
-                  <select id="sample" className={cn(inputClasses, 'h-8 w-auto py-0 text-xs')} value="" onChange={(e) => loadSample(e.target.value)}>
-                    <option value="">Load sample…</option>
-                    {samples.map((sample) => (
-                      <option key={sample.id} value={sample.id}>
-                        {sample.title}
-                      </option>
-                    ))}
-                  </select>
-                  <Button variant="ghost" size="sm" icon={<Trash className="h-3.5 w-3.5" />} onClick={() => setContent('')} disabled={!content} aria-label="Clear prompt">
-                    Clear
-                  </Button>
-                </div>
-              }
-            />
-            <div className="mt-4">
+            <CardHeader title="Prompt content" subtitle="Line numbers, template placeholders and pre-scan highlights" />
+            <div className="mt-4 flex items-center gap-2">
+              <label htmlFor="sample" className="sr-only">
+                Load a sample prompt
+              </label>
+              <select
+                id="sample"
+                className={cn(inputClasses, 'h-9 min-w-0 flex-1 py-0 text-xs sm:max-w-xs')}
+                value={activeSampleId}
+                onChange={(e) => loadSample(e.target.value)}
+              >
+                <option value="" disabled>
+                  Load sample…
+                </option>
+                {samples.map((sample) => (
+                  <option key={sample.id} value={sample.id}>
+                    {sample.title}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                icon={<Trash className="h-3.5 w-3.5" />}
+                onClick={() => setContent('')}
+                disabled={!content}
+                aria-label="Clear prompt"
+              >
+                Clear
+              </Button>
+            </div>
+            <div className="mt-3">
               <label htmlFor="prompt-content" className="sr-only">
                 Prompt content
               </label>
@@ -270,11 +282,21 @@ export default function NewAnalysisPage() {
           <ValidationPanel validation={validation} checking={checking} highlights={validatedFor === content ? validation?.highlights : []} />
 
           <Card className="p-5">
-            <p className="text-sm font-semibold">Analysis mode</p>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-semibold">Analysis mode</p>
+              <Link to="/settings#analysis-modes" className="text-xs text-accent hover:underline">
+                What's the difference?
+              </Link>
+            </div>
             <div className="mt-3 grid gap-2" role="radiogroup" aria-label="Analysis mode">
               {[
-                { value: 'auto' as const, title: 'Auto', text: 'AI Enhanced when an API key is configured, otherwise Local.', icon: Sparkles },
-                { value: 'local' as const, title: 'Local only', text: 'Deterministic scanners, nothing leaves the server.', icon: Lock },
+                {
+                  value: 'auto' as const,
+                  title: 'Auto',
+                  text: 'Adds an AI review when an OpenAI or Gemini key is set on the server; otherwise runs Local.',
+                  icon: Sparkles,
+                },
+                { value: 'local' as const, title: 'Local only', text: 'Rule-based scanners only. The prompt never leaves the server.', icon: Lock },
               ].map((option) => (
                 <button
                   key={option.value}

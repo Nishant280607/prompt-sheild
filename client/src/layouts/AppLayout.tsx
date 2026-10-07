@@ -19,8 +19,9 @@ export default function AppLayout() {
   }, []);
 
   useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [location.pathname]);
+    // Links with a #section scroll to that section instead (the page handles it).
+    if (!location.hash) window.scrollTo({ top: 0 });
+  }, [location.pathname, location.hash]);
 
   return (
     <div className="noise relative min-h-screen">

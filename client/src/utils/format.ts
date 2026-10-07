@@ -7,7 +7,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
   minute: '2-digit',
 });
 
+const timeFormatter = new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' });
+
 export const formatDate = (value: string | Date) => dateFormatter.format(new Date(value));
+export const formatTime = (value: string | Date) => timeFormatter.format(new Date(value));
 export const formatDateTime = (value: string | Date) => dateTimeFormatter.format(new Date(value));
 export const formatNumber = (value: number | null | undefined) =>
   value === null || value === undefined ? '-' : value.toLocaleString('en-IN');

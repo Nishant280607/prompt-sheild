@@ -26,6 +26,13 @@ model User {
   prompts Prompt[]
 }
 
+/// Server-side key/value settings, e.g. the generated session signing secret (when JWT_SECRET is not set).
+model Setting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+}
+
 /// A logical prompt such as "Customer Support Assistant". Its text lives in versions.
 model Prompt {
   id          String   @id @default(cuid())

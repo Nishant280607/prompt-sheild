@@ -32,7 +32,7 @@ export function DataTable<T>({
           <thead>
             <tr className="border-b border-white/[0.08] text-[11px] tracking-[0.14em] text-slate-500 uppercase">
               {columns.map((column) => (
-                <th key={column.key} scope="col" className={cn('px-4 py-3 font-medium', column.className)}>
+                <th key={column.key} scope="col" className={cn('px-3 py-3 font-medium', column.className)}>
                   {column.header}
                 </th>
               ))}
@@ -46,7 +46,7 @@ export function DataTable<T>({
                 className={cn('border-b border-white/[0.04] transition hover:bg-white/[0.03]', onRowClick && 'cursor-pointer')}
               >
                 {columns.map((column) => (
-                  <td key={column.key} className={cn('px-4 py-3.5 align-middle', column.className)}>
+                  <td key={column.key} className={cn('px-3 py-3.5 align-middle', column.className)}>
                     {column.render(row)}
                   </td>
                 ))}

@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
-import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { JWT_AUDIENCE, JWT_ISSUER } from '../services/auth.service.js';
+import { getJwtSecret } from '../services/secret.service.js';
 import { AppError } from '../utils/AppError.js';
 
 export interface AuthUser {
@@ -18,7 +18,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
   let payload: JwtPayload;
   try {
-    const decoded = jwt.verify(header.slice(7).trim(), env.jwtSecret, {
+    const decoded = jwt.verify(header.slice(7).trim(), getJwtSecret(), {
       algorithms: ['HS256'],
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,

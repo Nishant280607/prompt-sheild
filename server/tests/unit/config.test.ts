@@ -22,6 +22,12 @@ describe('JWT secret configuration', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('JWT_SECRET is not set'));
   });
 
+  it('does not warn when a database can store a generated secret', () => {
+    const warn = vi.fn();
+    expect(resolveJwtSecret('production', undefined, warn, true).persistent).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('rejects weak or placeholder secrets in production', () => {
     expect(() => resolveJwtSecret('production', 'short-secret')).toThrow(ConfigError);
     expect(() => resolveJwtSecret('production', 'change-me-to-a-long-random-string')).toThrow(

@@ -348,9 +348,16 @@ export interface VulnerabilityReport {
   disclaimer: string;
 }
 
+/** "temporary": no database is connected on the server, so accounts reset when it restarts. */
+export interface DeploymentStatus {
+  storage: 'persistent' | 'temporary';
+  sessions: 'persistent' | 'temporary';
+}
+
 export interface SystemStatus {
   analysisMode: AIStatus;
   scanners: Array<{ category: Category; label: string; stage: StageKey }>;
   scoring: { weights: Record<Category, number>; bands: Array<{ min: number; rating: Rating; riskLevel: RiskLevel }> };
+  deployment?: DeploymentStatus;
   version: string;
 }

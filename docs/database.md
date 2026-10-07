@@ -24,6 +24,7 @@ All foreign keys use `ON DELETE CASCADE`: deleting a user removes their prompts,
 | **AnalysisCategoryResult** | id, analysisId, category, score, riskLevel, detected, weight, explanation, details (JSON), durationMs | One row per scanner; `@@unique([analysisId, category])` |
 | **Finding** | id, categoryResultId, ruleId, title, severity, evidence (masked), explanation, line, column, startOffset, endOffset, source | Evidence is always masked before it is stored |
 | **Recommendation** | id, analysisId, code, category, priority, title, description, actions (JSON), relatedRuleIds (JSON) | `@@unique([analysisId, code])` |
+| **Setting** | key (id), value, createdAt | Server key/value settings, e.g. the generated session secret when `JWT_SECRET` is not set |
 
 ## Design notes
 - **Normalisation:** findings reference their category result (not the analysis directly), and analyses reference versions; the owning user is always reached through relations, so no user ID is duplicated.

@@ -84,7 +84,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <Card className="relative flex flex-col items-center overflow-hidden p-6 text-center">
+        <Card className="relative flex flex-col items-center justify-center overflow-hidden p-6 text-center">
           <div className="absolute -top-16 h-40 w-40 rounded-full blur-3xl" style={{ background: `${scoreHex(data.posture.score)}33` }} aria-hidden="true" />
           <Eyebrow>Overall security score</Eyebrow>
           <div className="mt-4">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         </Card>
 
         <div className="grid gap-6">
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
             {kpis.map((kpi) => (
               <Card key={kpi.label} className="p-4">
                 <div className="flex items-center justify-between">

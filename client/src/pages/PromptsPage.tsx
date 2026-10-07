@@ -83,7 +83,7 @@ export default function PromptsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] tracking-wider text-slate-500 uppercase">{formatCategory(prompt.category)}</p>
-                    <Link to={`/prompts/${prompt.id}`} className="mt-1 block truncate text-base font-semibold text-slate-50 hover:text-accent">
+                    <Link to={`/prompts/${prompt.id}`} title={prompt.title} className="mt-1 block truncate text-base font-semibold text-slate-50 hover:text-accent">
                       {prompt.title}
                     </Link>
                   </div>

@@ -3,6 +3,7 @@ import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { getJwtSecret } from './secret.service.js';
 
 export const JWT_ISSUER = 'prompt-shield';
 export const JWT_AUDIENCE = 'prompt-shield-client';
@@ -31,7 +32,7 @@ export const toPublicUser = (user: { id: string; name: string; email: string; cr
 });
 
 export function signToken(user: { id: string; tokenVersion: number }): { token: string; expiresAt: string } {
-  const token = jwt.sign({ tv: user.tokenVersion }, env.jwtSecret, {
+  const token = jwt.sign({ tv: user.tokenVersion }, getJwtSecret(), {
     subject: user.id,
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,

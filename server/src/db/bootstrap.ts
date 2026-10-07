@@ -1,6 +1,7 @@
 import { env } from '../config/env.js';
 import { MIGRATIONS } from '../generated/migrations.js';
 import { recoverInterruptedAnalyses } from '../services/analysis.service.js';
+import { prepareJwtSecret } from '../services/secret.service.js';
 import { logger } from '../utils/logger.js';
 import { seedDemoAccount } from './demo.js';
 import { applyMigrations } from './migrate.js';
@@ -11,8 +12,9 @@ const SERVERLESS_STALE_ANALYSIS_MS = 10 * 60 * 1000;
 /**
  * Everything the database needs before the API serves requests:
  * 1. apply pending migrations (a new database gets its tables),
- * 2. create the demo account when DEMO_ACCOUNT is enabled (default),
- * 3. mark analyses interrupted by a restart as failed.
+ * 2. load the stored session secret when JWT_SECRET is not set (persistent databases only),
+ * 3. create the demo account when DEMO_ACCOUNT is enabled (default),
+ * 4. mark analyses interrupted by a restart as failed.
  */
 export async function prepareDatabase(options: { serverless?: boolean } = {}): Promise<void> {
   const serverless = options.serverless ?? env.isServerless;
@@ -22,6 +24,10 @@ export async function prepareDatabase(options: { serverless?: boolean } = {}): P
     logger.info(`Applied database migration(s): ${migrations.applied.join(', ')}`);
   if (migrations.skipped)
     logger.warn('Database tables exist without migration history - automatic migrations skipped.');
+
+  if ((await prepareJwtSecret()) === 'database') {
+    logger.info('Using the session secret stored in the database (JWT_SECRET is not set).');
+  }
 
   if (env.DEMO_ACCOUNT) {
     const started = Date.now();

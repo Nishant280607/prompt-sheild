@@ -8,8 +8,9 @@ import { Button } from '../components/ui/Button';
 import { Field, inputClasses } from '../components/ui/FormField';
 import { useAuth } from '../context/AuthContext';
 import { useDocumentTitle } from '../hooks/useAsync';
+import { useDeploymentStatus } from '../hooks/useDeploymentStatus';
 import AuthLayout from '../layouts/AuthLayout';
-import { getErrorMessage } from '../utils/helpers';
+import { getErrorCode, getErrorMessage } from '../utils/helpers';
 
 const schema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const location = useLocation();
   const [params] = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
+  const deployment = useDeploymentStatus();
   const {
     register,
     handleSubmit,
@@ -40,7 +42,12 @@ export default function LoginPage() {
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from && from !== '/login' ? from : '/dashboard', { replace: true });
     } catch (error) {
-      setServerError(getErrorMessage(error));
+      const resetByRestart = deployment?.storage === 'temporary' && getErrorCode(error) === 'INVALID_CREDENTIALS';
+      setServerError(
+        resetByRestart
+          ? 'Invalid email or password. Accounts on this deployment are reset when the server restarts, so an account created earlier may be gone - create it again or use the demo account.'
+          : getErrorMessage(error),
+      );
     }
   });
 

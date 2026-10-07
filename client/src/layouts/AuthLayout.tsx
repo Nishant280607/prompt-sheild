@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Logo } from '../components/brand/Logo';
+import { useDeploymentStatus } from '../hooks/useDeploymentStatus';
 
 const HIGHLIGHTS = [
   'Prompt injection & jailbreak detection',
@@ -11,6 +12,7 @@ const HIGHLIGHTS = [
 
 /** Split layout for the login and registration pages. */
 export default function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  const deployment = useDeploymentStatus();
   return (
     <div className="noise relative grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <section className="relative hidden overflow-hidden border-r border-white/[0.06] lg:flex lg:flex-col lg:justify-between lg:p-12">
@@ -42,6 +44,14 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
           </Link>
           <h1 className="text-2xl font-semibold">{title}</h1>
           <p className="mt-1.5 text-sm text-slate-400">{subtitle}</p>
+          {deployment?.storage === 'temporary' && (
+            <div role="note" className="mt-5 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3 text-xs leading-relaxed text-amber-100/90">
+              <p className="font-medium text-amber-200">Temporary demo storage</p>
+              <p className="mt-1">
+                This deployment is not connected to a database yet, so new accounts are reset whenever the server restarts. The demo account always works.
+              </p>
+            </div>
+          )}
           <div className="mt-8">{children}</div>
         </div>
       </section>

@@ -181,7 +181,7 @@ npm run dev          # starts API (http://localhost:5000) and UI (http://localho
 | `CLIENT_ORIGIN`                   | `http://localhost:5173`    | Allowed CORS origin(s), comma-separated            |
 | `DATABASE_URL`                    | `file:./dev.db`            | SQLite file (relative to `server/`) or a Turso/libSQL URL (`libsql://…`) |
 | `DATABASE_AUTH_TOKEN`             | empty                      | Turso auth token (`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` also work) |
-| `JWT_SECRET`                      | generated                  | Signing secret (≥ 32 chars in production; if unset, a temporary one is used and sign-ins reset on restart) |
+| `JWT_SECRET`                      | generated                  | Signing secret (≥ 32 chars in production). If unset, one is generated and stored in the database (or kept in memory when there is no persistent database) |
 | `JWT_EXPIRES_IN`                  | `8h`                       | Session length                                     |
 | `BCRYPT_ROUNDS`                   | `12`                       | Password hashing cost                              |
 | `DEMO_ACCOUNT`                    | `true`                     | Create the demo account on start-up when it is missing |
@@ -219,7 +219,7 @@ npm start            # run the compiled API (after npm run build)
 ## Running tests
 
 ```bash
-npm test             # backend (78 tests) + frontend tests
+npm test             # backend (81 tests) + frontend tests
 npm run test:server  # Vitest + Supertest
 npm run test:client  # Vitest + Testing Library
 npm run test:smoke   # end-to-end demo flow against a running API
@@ -231,14 +231,18 @@ npm run typecheck    # TypeScript for both workspaces
 
 `vercel.json` deploys the React client and the Express API as two services on one domain (`/api/*` goes to the API, everything else to the client, with a fallback to `index.html` so links such as `/login` work). The API runs as a serverless function (`server/src/index.ts`): on its first request it applies the database migrations and creates the demo account, so no setup step is needed.
 
-Set these under **Project → Settings → Environment Variables**, then redeploy:
+**Connect a database so accounts are kept** (one-time, free):
+
+1. In the Vercel project, open **Storage** (or the Marketplace), add **Turso Cloud** and connect it to this project. It adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+2. Redeploy (Deployments → ⋯ → Redeploy). The tables, a session secret and the demo account are created automatically.
 
 | Variable | Needed? | Why |
 | --- | --- | --- |
-| `JWT_SECRET` | Yes | A long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`). Without it every new serverless instance signs people out. |
-| `DATABASE_URL` + `DATABASE_AUTH_TOKEN` | For permanent accounts | A free [Turso](https://turso.tech) database (`libsql://…` URL + token), or add the Turso integration from the Vercel Marketplace (it sets `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`). The tables are created automatically. |
+| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (or `DATABASE_URL` + `DATABASE_AUTH_TOKEN`) | For permanent accounts | A Turso (libSQL) database, set by the integration above or copied from [turso.tech](https://turso.tech). |
+| `JWT_SECRET` | Optional | With a database connected, a random session secret is generated once and stored in it. Set this only to choose your own (32+ random characters). |
+| `OPENAI_API_KEY` / `GEMINI_API_KEY` | Optional | Turns on AI Enhanced mode (see *Local vs AI Enhanced mode* in the app's Settings page). |
 
-Without a database URL the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time). `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
+Without a database the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time), and the login page says so. `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
 
 ## Demo credentials and demo flow
 

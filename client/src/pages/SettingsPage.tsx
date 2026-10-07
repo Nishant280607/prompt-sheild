@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Cpu, KeyRound, LogOut, Trash, UserRound } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Cpu, KeyRound, Lock, LogOut, Sparkles, Trash, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Badge } from '../components/ui/Badge';
@@ -18,6 +19,31 @@ import { formatDate } from '../utils/format';
 import { getErrorMessage } from '../utils/helpers';
 import { passwordSchema } from './RegisterPage';
 
+const ANALYSIS_MODES = [
+  {
+    title: 'Local',
+    tag: 'Default · no API key',
+    icon: Lock,
+    points: [
+      'Five rule-based scanners: prompt injection, jailbreak, information leakage, consistency and token cost.',
+      'Consistency is simulated: 5 runs over 6 behaviour checks (output format, scope, refusals, tone, length, unknown answers).',
+      'Instant and free, and the same prompt always gets the same score.',
+      'The prompt never leaves the server.',
+    ],
+  },
+  {
+    title: 'AI Enhanced',
+    tag: 'Needs an OpenAI or Gemini key',
+    icon: Sparkles,
+    points: [
+      'Runs everything in Local mode, plus:',
+      'AI security review: the model looks for extra injection, jailbreak and leakage issues, shown as "AI review" findings (advisory, at most High).',
+      'Real consistency test: the model answers 2 test questions 3 times each; how similar the answers are is blended 50/50 into the consistency score.',
+      'Secrets are masked before anything is sent. Takes a few seconds, uses API credits, and results can vary slightly. If the provider fails, the local results are used and the report says so.',
+    ],
+  },
+] as const;
+
 const profileSchema = z.object({ name: z.string().trim().min(2, 'Name must be at least 2 characters.').max(80) });
 const passwordFormSchema = z
   .object({ currentPassword: z.string().min(1, 'Current password is required.'), newPassword: passwordSchema, confirmPassword: z.string() })
@@ -28,6 +54,14 @@ export default function SettingsPage() {
   const { user, setUser, applySession, logout } = useAuth();
   const toast = useToast();
   const { data: system, loading: systemLoading } = useAsync(() => dashboardService.systemStatus(), []);
+  const location = useLocation();
+
+  // "What's the difference?" on New Analysis links to /settings#analysis-modes.
+  useEffect(() => {
+    if (!location.hash) return;
+    const frame = window.requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, systemLoading]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -122,9 +156,22 @@ export default function SettingsPage() {
               <p className="mt-1 font-display text-xl font-semibold">Analysis Mode: {mode.label}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {mode.mode === 'LOCAL'
-                  ? 'Deterministic local scanners. Add OPENAI_API_KEY or GEMINI_API_KEY to server/.env to enable AI Enhanced mode.'
+                  ? 'Rule-based scanners on the server. Set OPENAI_API_KEY or GEMINI_API_KEY to turn on AI Enhanced mode (see below).'
                   : `Local scanners plus ${mode.provider} (${mode.model}). Secrets are masked before prompts are sent.`}
               </p>
+              {system.deployment && (
+                <p className="mt-4 text-sm text-slate-400">
+                  Data storage{' '}
+                  <Badge tone={system.deployment.storage === 'persistent' ? 'success' : 'warning'}>
+                    {system.deployment.storage === 'persistent' ? 'Persistent' : 'Temporary'}
+                  </Badge>
+                  {system.deployment.storage === 'temporary' && (
+                    <span className="mt-1 block text-xs text-slate-500">
+                      No database is connected, so accounts and analyses reset when the server restarts.
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="space-y-2 text-sm">
               <p className="text-slate-400">Providers</p>
@@ -145,6 +192,39 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+      </Card>
+
+      <Card id="analysis-modes" className="scroll-mt-24 p-5">
+        <CardHeader
+          title="Local vs AI Enhanced mode"
+          icon={<Sparkles className="h-4 w-4" />}
+          subtitle="Both modes give the same report format and 0-100 score; AI Enhanced adds two extra checks."
+        />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {ANALYSIS_MODES.map((item) => (
+            <div key={item.title} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <div className="flex items-center gap-2">
+                <item.icon className="h-4 w-4 text-accent" aria-hidden="true" />
+                <p className="font-medium text-slate-100">{item.title}</p>
+                <span className="ml-auto text-xs text-slate-500">{item.tag}</span>
+              </div>
+              <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                {item.points.map((point) => (
+                  <li key={point} className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs leading-relaxed text-slate-500">
+          To turn on AI Enhanced mode, add <code className="font-mono text-slate-300">OPENAI_API_KEY</code> or{' '}
+          <code className="font-mono text-slate-300">GEMINI_API_KEY</code> as a server environment variable (on Vercel: Project → Settings → Environment
+          Variables, then redeploy; locally: <code className="font-mono text-slate-300">server/.env</code>, then restart). "Auto" on New Analysis then
+          uses it; "Local only" still keeps a run offline.
+        </p>
       </Card>
 
       <Card className="border-rose-400/20 p-5">

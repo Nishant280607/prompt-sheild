@@ -86,20 +86,22 @@ export interface JwtSecret {
 
 /**
  * A configured secret must be strong in production. When no secret is configured a random one
- * is generated - still secure, but sessions do not survive a restart (or a new serverless
- * instance), so a warning explains how to fix it.
+ * is generated. With a persistent database (`canStore`) the server keeps a generated secret in
+ * the database on start-up (src/services/secret.service.ts), so sessions survive restarts;
+ * otherwise sessions end when the server restarts and a warning explains how to fix it.
  */
 export function resolveJwtSecret(
   nodeEnv: string,
   value: string | undefined,
   warn: (message: string) => void = console.warn,
+  canStore = false,
 ): JwtSecret {
   const secret = value?.trim();
   if (!secret) {
-    if (nodeEnv !== 'test') {
+    if (nodeEnv !== 'test' && !canStore) {
       warn(
         '[config] JWT_SECRET is not set - using a temporary random secret, so everyone is signed out when the server restarts. ' +
-          'Set JWT_SECRET to a long random string (locally `npm run setup` does this; on Vercel add it under Settings -> Environment Variables).',
+          'Set JWT_SECRET to a long random string, or connect a database (DATABASE_URL) so a secret can be stored.',
       );
     }
     return { secret: randomBytes(48).toString('hex'), persistent: false };
@@ -204,16 +206,17 @@ export function resolveTrustProxy(
 const warnUnlessTest = (message: string) => {
   if (raw.NODE_ENV !== 'test') console.warn(message);
 };
-const jwt = resolveJwtSecret(raw.NODE_ENV, raw.JWT_SECRET, warnUnlessTest);
 const database = resolveDatabaseConfig(raw, { serverless, warn: warnUnlessTest });
+const jwt = resolveJwtSecret(raw.NODE_ENV, raw.JWT_SECRET, warnUnlessTest, !database.temporary);
 
 export const env = {
   ...raw,
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   isServerless: serverless,
+  /** Secret from JWT_SECRET, or a random one - read it through getJwtSecret() (secret.service). */
   jwtSecret: jwt.secret,
-  jwtSecretPersistent: jwt.persistent,
+  jwtSecretConfigured: jwt.persistent,
   database,
   databaseUrl: database.url,
   trustProxy: resolveTrustProxy(raw.TRUST_PROXY, serverless),

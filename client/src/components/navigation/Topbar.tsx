@@ -60,7 +60,7 @@ export function Topbar({ onMenu, aiStatus }: { onMenu: () => void; aiStatus: AIS
             <span className="hidden max-w-32 truncate md:inline">{user?.name}</span>
           </button>
           {menuOpen && (
-            <div role="menu" className="glass absolute right-0 mt-2 w-56 animate-fade-up rounded-xl bg-ink-900/95 p-1.5">
+            <div role="menu" className="glass absolute right-0 z-30 mt-2 w-56 animate-fade-up rounded-xl bg-ink-900 p-1.5 shadow-2xl shadow-black/60">
               <div className="border-b border-white/[0.06] px-3 py-2">
                 <p className="truncate text-sm font-medium text-slate-100">{user?.name}</p>
                 <p className="truncate text-xs text-slate-500">{user?.email}</p>
