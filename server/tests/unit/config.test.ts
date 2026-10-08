@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   cleanEnvValue,
   ConfigError,
+  databaseRegion,
   normalizePostgresUrl,
   resolveDatabaseConfig,
   resolveJwtSecret,
@@ -180,6 +181,29 @@ describe('PostgreSQL URL normalisation', () => {
     expect(cleanEnvValue("'x'")).toBe('x');
     expect(cleanEnvValue('"x')).toBe('"x');
     expect(cleanEnvValue('  ')).toBeUndefined();
+  });
+});
+
+describe('database region', () => {
+  it('reads the cloud region from the host name', () => {
+    expect(databaseRegion('libsql://prompt-shield-nishant.aws-ap-south-1.turso.io')).toBe(
+      'aws-ap-south-1',
+    );
+    expect(databaseRegion('https://db-org.aws-us-east-1.turso.io')).toBe('aws-us-east-1');
+    expect(
+      databaseRegion('postgresql://u:p@ep-cool-123.us-east-2.aws.neon.tech/db?sslmode=require'),
+    ).toBe('us-east-2');
+    expect(
+      databaseRegion('postgres://u:p@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres'),
+    ).toBe('ap-southeast-1');
+    expect(databaseRegion('postgres://u:p@db.eu-central-1.example.com/app')).toBe('eu-central-1');
+  });
+
+  it('returns nothing when the URL names no region', () => {
+    expect(databaseRegion('libsql://db-org.turso.io')).toBeUndefined();
+    expect(databaseRegion('file:./dev.db')).toBeUndefined();
+    expect(databaseRegion('http://127.0.0.1:8080')).toBeUndefined();
+    expect(databaseRegion('not a url')).toBeUndefined();
   });
 });
 

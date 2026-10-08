@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { env } from '../config/env.js';
+import { databaseRegion, env } from '../config/env.js';
 import { SAMPLE_PROMPTS } from '../data/samplePrompts.js';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from '../middleware/auth.js';
@@ -30,13 +30,24 @@ function deploymentStatus() {
   };
 }
 
+/**
+ * Where the server and the database run, e.g. region "bom1" (Vercel, Mumbai) and databaseRegion
+ * "aws-ap-south-1". Every query crosses the distance between them, so they should match.
+ */
+function regions() {
+  const server = process.env.VERCEL_REGION;
+  const database = databaseRegion(env.database.url);
+  return { ...(server ? { region: server } : {}), ...(database ? { databaseRegion: database } : {}) };
+}
+
 export async function health(_req: Request, res: Response) {
   try {
-    const started = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    // One round trip to the database: high values mean the database is far from the server.
-    const databaseLatencyMs = Date.now() - started;
-    sendSuccess(res, { status: 'ok', database: 'ok', databaseLatencyMs, ...deploymentStatus(), uptimeSeconds: Math.round(process.uptime()) });
+    // Timed on an open connection, so this is one round trip: high values mean the database is far from the server.
+    const started = performance.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const databaseLatencyMs = Math.round(performance.now() - started);
+    sendSuccess(res, { status: 'ok', database: 'ok', databaseLatencyMs, ...deploymentStatus(), ...regions(), uptimeSeconds: Math.round(process.uptime()) });
   } catch {
     sendError(res, 503, 'DATABASE_UNAVAILABLE', 'The database is not reachable. Run `npm run setup` to initialise it.');
   }

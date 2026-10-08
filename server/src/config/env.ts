@@ -145,7 +145,8 @@ type UrlKind = 'libsql' | 'postgres' | 'file' | 'prisma-accelerate' | 'other-sch
 /** Remove whitespace and quotes pasted around a value, e.g. "libsql://..." copied from a .env file. */
 export function cleanEnvValue(value: string | undefined): string | undefined {
   let cleaned = value?.trim();
-  while (cleaned && cleaned.length >= 2 && /^(["']).*\1$/s.test(cleaned)) cleaned = cleaned.slice(1, -1).trim();
+  while (cleaned && cleaned.length >= 2 && /^(["']).*\1$/s.test(cleaned))
+    cleaned = cleaned.slice(1, -1).trim();
   return cleaned || undefined;
 }
 
@@ -162,7 +163,8 @@ function classifyUrl(url: string): UrlKind {
  * Explain an unusable database setting without revealing it (only the scheme is mentioned).
  */
 function unusableUrlMessage(name: string, url: string, kind: UrlKind): string {
-  const supported = 'Use a Turso/libSQL URL (libsql://...), a PostgreSQL URL (postgres://...) or a SQLite file (file:./dev.db).';
+  const supported =
+    'Use a Turso/libSQL URL (libsql://...), a PostgreSQL URL (postgres://...) or a SQLite file (file:./dev.db).';
   if (kind === 'prisma-accelerate') {
     return `${name} is a Prisma Accelerate URL (prisma+postgres://), which cannot be used directly. Use the direct connection URL (postgres://...) instead - the Vercel Prisma Postgres integration also provides it as POSTGRES_URL.`;
   }
@@ -195,6 +197,21 @@ export function normalizePostgresUrl(url: string): string {
 }
 
 /**
+ * The cloud region in a database host name, e.g. "aws-ap-south-1" (Turso, Mumbai) or "us-east-2"
+ * (Neon); undefined when the URL does not name one.
+ */
+export function databaseRegion(url: string): string | undefined {
+  try {
+    const host = new URL(url).hostname;
+    return /(?:^|[.-])((?:aws-)?[a-z]{2}-(?:north|south|east|west|central)(?:east|west)?-\d)(?=[.-])/.exec(
+      host,
+    )?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Pick the database. The first of DATABASE_URL, TURSO_DATABASE_URL (Vercel Turso integration)
  * and POSTGRES_URL (Vercel Postgres integrations) that holds a libSQL or PostgreSQL URL is used.
  * Without one, local development uses server/dev.db and serverless hosts use a file in the
@@ -215,18 +232,29 @@ export function resolveDatabaseConfig(
 
   // A database server wins over a SQLite file, e.g. a leftover DATABASE_URL=file:./dev.db next to
   // the TURSO_DATABASE_URL or POSTGRES_URL added by a Vercel integration.
-  const remote = candidates.find((candidate) => candidate.kind === 'libsql' || candidate.kind === 'postgres');
+  const remote = candidates.find(
+    (candidate) => candidate.kind === 'libsql' || candidate.kind === 'postgres',
+  );
   if (remote?.kind === 'postgres') {
-    return { url: normalizePostgresUrl(remote.url), authToken: '', driver: 'postgres', temporary: false };
+    return {
+      url: normalizePostgresUrl(remote.url),
+      authToken: '',
+      driver: 'postgres',
+      temporary: false,
+    };
   }
   if (remote) {
-    const tokens = remote.name === 'TURSO_DATABASE_URL' ? [vars.TURSO_AUTH_TOKEN, vars.DATABASE_AUTH_TOKEN] : [vars.DATABASE_AUTH_TOKEN, vars.TURSO_AUTH_TOKEN];
+    const tokens =
+      remote.name === 'TURSO_DATABASE_URL'
+        ? [vars.TURSO_AUTH_TOKEN, vars.DATABASE_AUTH_TOKEN]
+        : [vars.DATABASE_AUTH_TOKEN, vars.TURSO_AUTH_TOKEN];
     const authToken = tokens.map(cleanEnvValue).find(Boolean) ?? '';
     return { url: remote.url, authToken, driver: 'libsql', temporary: false };
   }
 
   const unusable = candidates.find((candidate) => candidate.kind !== 'file');
-  if (unusable) throw new ConfigError(unusableUrlMessage(unusable.name, unusable.url, unusable.kind));
+  if (unusable)
+    throw new ConfigError(unusableUrlMessage(unusable.name, unusable.url, unusable.kind));
   const configured = candidates.find((candidate) => candidate.kind === 'file')?.url;
 
   if (!options.serverless) {

@@ -32,6 +32,7 @@ describe('Vercel serverless entrypoint', () => {
       storage: 'persistent',
       sessions: 'persistent',
     });
+    expect(res.body.data.databaseLatencyMs).toBeGreaterThanOrEqual(0);
 
     const notFound = await request(handler).get('/api/does-not-exist');
     expect(notFound.status).toBe(404);
