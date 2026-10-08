@@ -235,6 +235,7 @@ npm run typecheck    # TypeScript for both workspaces
 
 1. In the Vercel project, open **Storage**, create a database and connect it to this project. Any of these work: **Neon** or **Prisma Postgres** (PostgreSQL), **Supabase** (PostgreSQL) or **Turso Cloud** (libSQL). The integration adds the connection variables for you.
 2. Redeploy (Deployments → ⋯ → Redeploy). The tables, a session secret and the demo account are created automatically.
+3. Keep the API in the same region as the database, because every page makes several database queries. `vercel.json` runs the API in Mumbai (`bom1`), next to this project's Turso database (`aws-ap-south-1`). If your database is somewhere else, change `regions` there to the matching Vercel region (for example `iad1` for `us-east-1`, `fra1` for `eu-central-1`).
 
 | Variable | Needed? | Why |
 | --- | --- | --- |
@@ -242,7 +243,7 @@ npm run typecheck    # TypeScript for both workspaces
 | `JWT_SECRET` | Optional | With a database connected, a random session secret is generated once and stored in it. Set this only to choose your own (32+ random characters). |
 | `OPENAI_API_KEY` / `GEMINI_API_KEY` | Optional | Turns on AI Enhanced mode (see *Local vs AI Enhanced mode* in the app's Settings page). |
 
-Without a database the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time), and the login page says so. `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary` and the database `"engine"`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
+Without a database the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time), and the login page says so. `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, the database `"engine"`, the API `"region"`, the `"databaseRegion"` and `"databaseLatencyMs"` (a few milliseconds when the regions match), so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
 
 ## Demo credentials and demo flow
 

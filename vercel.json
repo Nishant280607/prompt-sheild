@@ -9,7 +9,8 @@
     "server": {
       "root": "server",
       "framework": "express",
-      "entrypoint": "src/index.ts"
+      "entrypoint": "src/index.ts",
+      "functions": { "src/index.ts": { "regions": ["bom1"] } }
     }
   },
   "rewrites": [
