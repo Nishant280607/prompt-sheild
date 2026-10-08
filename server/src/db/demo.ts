@@ -104,7 +104,7 @@ export async function seedDemoAccount(options: SeedOptions = {}): Promise<'creat
           startedAt: new Date(),
         },
       });
-      await executeAnalysis(analysis.id, version.content, local);
+      await executeAnalysis(analysis.id, version.content, local, { trackProgress: false });
 
       const result = await prisma.analysis.findUniqueOrThrow({ where: { id: analysis.id } });
       if (result.status !== 'COMPLETED')

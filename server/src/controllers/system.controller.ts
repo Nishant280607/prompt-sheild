@@ -32,8 +32,11 @@ function deploymentStatus() {
 
 export async function health(_req: Request, res: Response) {
   try {
+    const started = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    sendSuccess(res, { status: 'ok', database: 'ok', ...deploymentStatus(), uptimeSeconds: Math.round(process.uptime()) });
+    // One round trip to the database: high values mean the database is far from the server.
+    const databaseLatencyMs = Date.now() - started;
+    sendSuccess(res, { status: 'ok', database: 'ok', databaseLatencyMs, ...deploymentStatus(), uptimeSeconds: Math.round(process.uptime()) });
   } catch {
     sendError(res, 503, 'DATABASE_UNAVAILABLE', 'The database is not reachable. Run `npm run setup` to initialise it.');
   }

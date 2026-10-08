@@ -12,8 +12,8 @@ interface MigrationTarget {
   listTables(): Promise<string[]>;
   createMigrationsTable(): Promise<void>;
   appliedMigrations(): Promise<Set<string>>;
-  /** Run a migration script and record it in _prisma_migrations. */
-  applyMigration(migration: EmbeddedMigration): Promise<void>;
+  /** Run a migration script and record it; false when another instance already applied it. */
+  applyMigration(migration: EmbeddedMigration): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -73,6 +73,7 @@ function openSqlite(url: string): MigrationTarget {
         `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, started_at, applied_steps_count)
          VALUES (?, ?, current_timestamp, ?, current_timestamp, 1)`,
       ).run(randomUUID(), migration.checksum, migration.name);
+      return true;
     },
     close: async () => {
       db.close();
@@ -102,6 +103,7 @@ function openLibsql(url: string, authToken: string): MigrationTarget {
               VALUES (?, ?, current_timestamp, ?, current_timestamp, 1)`,
         args: [randomUUID(), migration.checksum, migration.name],
       });
+      return true;
     },
     close: async () => client.close(),
   };
@@ -110,11 +112,29 @@ function openLibsql(url: string, authToken: string): MigrationTarget {
 /** Arbitrary but fixed key: every Prompt Shield instance waits for the same lock. */
 const POSTGRES_MIGRATION_LOCK = 72_735_100;
 
+/**
+ * Run `work` in a transaction that holds the migration lock. The lock is transaction-scoped, so it
+ * also works through connection poolers (Neon, Supabase) and can never outlive the transaction;
+ * lock_timeout stops an instance from waiting forever on one that was paused mid-migration.
+ */
+async function withMigrationLock<T>(client: pg.Client, work: () => Promise<T>): Promise<T> {
+  await client.query('BEGIN');
+  try {
+    await client.query("SET LOCAL lock_timeout = '15s'");
+    await client.query('SELECT pg_advisory_xact_lock($1)', [POSTGRES_MIGRATION_LOCK]);
+    const result = await work();
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    // PostgreSQL can roll back schema changes, so a failed migration leaves nothing behind.
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  }
+}
+
 async function openPostgres(url: string): Promise<MigrationTarget> {
-  const client = new pg.Client({ connectionString: url });
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 15_000 });
   await client.connect();
-  // Instances that start at the same moment wait here instead of migrating twice.
-  await client.query('SELECT pg_advisory_lock($1)', [POSTGRES_MIGRATION_LOCK]);
   return {
     listTables: async () =>
       (
@@ -122,31 +142,28 @@ async function openPostgres(url: string): Promise<MigrationTarget> {
           "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'",
         )
       ).rows.map((row) => row.name),
-    createMigrationsTable: async () => {
-      await client.query(POSTGRES_MIGRATIONS_TABLE);
-    },
+    createMigrationsTable: () =>
+      withMigrationLock(client, async () => {
+        await client.query(POSTGRES_MIGRATIONS_TABLE);
+      }),
     appliedMigrations: async () =>
       toNameSet((await client.query(APPLIED_QUERY)).rows, 'migration_name'),
-    applyMigration: async (migration) => {
-      // PostgreSQL can roll back schema changes, so a failed migration leaves nothing behind.
-      await client.query('BEGIN');
-      try {
+    applyMigration: (migration) =>
+      withMigrationLock(client, async () => {
+        // Another instance may have applied it while this one waited for the lock.
+        const done = await client.query(`${APPLIED_QUERY} AND migration_name = $1`, [
+          migration.name,
+        ]);
+        if (done.rowCount) return false;
         await client.query(migration.sql);
         await client.query(
           `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, started_at, applied_steps_count)
            VALUES ($1, $2, now(), $3, now(), 1)`,
           [randomUUID(), migration.checksum, migration.name],
         );
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK').catch(() => undefined);
-        throw error;
-      }
-    },
+        return true;
+      }),
     close: async () => {
-      await client
-        .query('SELECT pg_advisory_unlock($1)', [POSTGRES_MIGRATION_LOCK])
-        .catch(() => undefined);
       await client.end();
     },
   };
@@ -187,8 +204,7 @@ export async function applyMigrations(
     for (const migration of migrations) {
       if (done.has(migration.name)) continue;
       try {
-        await db.applyMigration(migration);
-        applied.push(migration.name);
+        if (await db.applyMigration(migration)) applied.push(migration.name);
       } catch (error) {
         // Another server instance may have applied it at the same moment.
         done = await db.appliedMigrations();

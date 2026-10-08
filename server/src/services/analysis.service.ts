@@ -68,12 +68,24 @@ export async function startAnalysis(
   return { analysisId: analysis.id, status: 'RUNNING', completion: executeAnalysis(analysis.id, version.content, provider) };
 }
 
-/** Run the scanners, record each stage and persist the results. Never throws. */
-export async function executeAnalysis(analysisId: string, content: string, provider: AIProvider): Promise<void> {
+/**
+ * Run the scanners, record each stage and persist the results. Never throws.
+ * `trackProgress: false` skips the per-stage progress writes (used for demo data, where nobody
+ * watches the progress page) - far fewer round trips to a remote database.
+ */
+export async function executeAnalysis(
+  analysisId: string,
+  content: string,
+  provider: AIProvider,
+  options: { trackProgress?: boolean } = {},
+): Promise<void> {
   const stages: StageEvent[] = [];
   const started = performance.now();
-  const saveProgress = (currentStage: string) =>
-    prisma.analysis.update({ where: { id: analysisId }, data: { currentStage, stageLog: JSON.stringify(stages) } });
+  const trackProgress = options.trackProgress ?? true;
+  const saveProgress = async (currentStage: string) => {
+    if (!trackProgress) return;
+    await prisma.analysis.update({ where: { id: analysisId }, data: { currentStage, stageLog: JSON.stringify(stages) } });
+  };
 
   try {
     const scan = await runSecurityScan(content, provider, {
