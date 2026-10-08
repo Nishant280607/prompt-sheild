@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  cleanEnvValue,
   ConfigError,
+  normalizePostgresUrl,
   resolveDatabaseConfig,
   resolveJwtSecret,
   resolveTrustProxy,
@@ -99,13 +101,85 @@ describe('database configuration', () => {
     ).toMatchObject({ url: 'libsql://other.turso.io', authToken: 'token-3', temporary: false });
   });
 
-  it('rejects unsupported database URLs with a clear message', () => {
-    expect(() =>
+  it('uses PostgreSQL URLs from Vercel Postgres integrations (Neon, Prisma Postgres, Supabase)', () => {
+    const neon = resolveDatabaseConfig(
+      {
+        DATABASE_URL:
+          'postgresql://user:pw@ep-x-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require',
+      },
+      { serverless: true, ...quiet },
+    );
+    expect(neon).toMatchObject({ driver: 'postgres', temporary: false });
+    // sslmode=require keeps its libpq meaning (encrypted connection).
+    expect(neon.url).toBe(
+      'postgresql://user:pw@ep-x-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&uselibpqcompat=true',
+    );
+
+    // Supabase only sets POSTGRES_URL.
+    expect(
       resolveDatabaseConfig(
-        { DATABASE_URL: 'postgresql://localhost/db' },
-        { serverless: false, ...quiet },
+        { POSTGRES_URL: 'postgres://u:p@db.example.com:5432/postgres' },
+        { serverless: true, ...quiet },
       ),
-    ).toThrow(ConfigError);
+    ).toMatchObject({ driver: 'postgres', url: 'postgres://u:p@db.example.com:5432/postgres' });
+
+    // Prisma Postgres: an Accelerate DATABASE_URL falls back to the direct POSTGRES_URL.
+    expect(
+      resolveDatabaseConfig(
+        {
+          DATABASE_URL: 'prisma+postgres://accelerate.prisma-data.net/?api_key=x',
+          POSTGRES_URL: 'postgres://u:p@db.prisma.io:5432/postgres',
+        },
+        { serverless: true, ...quiet },
+      ),
+    ).toMatchObject({ driver: 'postgres', url: 'postgres://u:p@db.prisma.io:5432/postgres' });
+  });
+
+  it('ignores quotes pasted around a value', () => {
+    expect(
+      resolveDatabaseConfig(
+        { DATABASE_URL: ' "libsql://db.turso.io" ', DATABASE_AUTH_TOKEN: "'token'" },
+        { serverless: true, ...quiet },
+      ),
+    ).toMatchObject({ url: 'libsql://db.turso.io', authToken: 'token', driver: 'libsql' });
+  });
+
+  it('explains unusable database settings without revealing them', () => {
+    const resolve = (vars: Record<string, string>) => () =>
+      resolveDatabaseConfig(vars, { serverless: true, ...quiet });
+    expect(resolve({ DATABASE_URL: 'mysql://u:secret@host/db' })).toThrow(ConfigError);
+    expect(resolve({ DATABASE_URL: 'mysql://u:secret@host/db' })).toThrow(
+      /unsupported database type \(mysql:\/\/\)/,
+    );
+    expect(resolve({ DATABASE_URL: 'mysql://u:secret@host/db' })).not.toThrow(/secret/);
+    expect(
+      resolve({ DATABASE_URL: 'prisma+postgres://accelerate.prisma-data.net/?api_key=x' }),
+    ).toThrow(/Prisma Accelerate URL/);
+    expect(resolve({ TURSO_DATABASE_URL: 'eyJhbGciOiJFZERTQSJ9.eyJhIjoicncifQ.sig' })).toThrow(
+      /TURSO_DATABASE_URL contains an auth token instead of a database URL.*TURSO_AUTH_TOKEN/,
+    );
+    expect(resolve({ DATABASE_URL: 'prompt-shield-db' })).toThrow(
+      /DATABASE_URL is not a database URL/,
+    );
+  });
+});
+
+describe('PostgreSQL URL normalisation', () => {
+  it('only adds libpq compatibility when an sslmode is given', () => {
+    expect(normalizePostgresUrl('postgres://u:p@h/db')).toBe('postgres://u:p@h/db');
+    expect(normalizePostgresUrl('postgres://u:p@h/db?sslmode=verify-full')).toBe(
+      'postgres://u:p@h/db?sslmode=verify-full&uselibpqcompat=true',
+    );
+    expect(normalizePostgresUrl('postgres://u:p@h/db?sslmode=require&uselibpqcompat=false')).toBe(
+      'postgres://u:p@h/db?sslmode=require&uselibpqcompat=false',
+    );
+  });
+
+  it('strips matching quotes only', () => {
+    expect(cleanEnvValue('"x"')).toBe('x');
+    expect(cleanEnvValue("'x'")).toBe('x');
+    expect(cleanEnvValue('"x')).toBe('"x');
+    expect(cleanEnvValue('  ')).toBeUndefined();
   });
 });
 

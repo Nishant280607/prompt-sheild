@@ -1,5 +1,5 @@
 import { env } from '../config/env.js';
-import { MIGRATIONS } from '../generated/migrations.js';
+import { MIGRATIONS, POSTGRES_MIGRATIONS } from '../generated/migrations.js';
 import { recoverInterruptedAnalyses } from '../services/analysis.service.js';
 import { prepareJwtSecret } from '../services/secret.service.js';
 import { logger } from '../utils/logger.js';
@@ -19,7 +19,10 @@ const SERVERLESS_STALE_ANALYSIS_MS = 10 * 60 * 1000;
 export async function prepareDatabase(options: { serverless?: boolean } = {}): Promise<void> {
   const serverless = options.serverless ?? env.isServerless;
 
-  const migrations = await applyMigrations(env.database, MIGRATIONS);
+  const migrations = await applyMigrations(
+    env.database,
+    env.database.driver === 'postgres' ? POSTGRES_MIGRATIONS : MIGRATIONS,
+  );
   if (migrations.applied.length > 0)
     logger.info(`Applied database migration(s): ${migrations.applied.join(', ')}`);
   if (migrations.skipped)

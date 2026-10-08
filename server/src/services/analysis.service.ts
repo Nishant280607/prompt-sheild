@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { PAGINATION } from '../config/constants.js';
 import { CATEGORY_WEIGHTS } from '../config/scoring.js';
-import { prisma } from '../lib/prisma.js';
+import { containsText, prisma } from '../lib/prisma.js';
 import {
   analysisDetailInclude,
   analysisSummaryInclude,
@@ -231,7 +231,7 @@ export async function listAnalyses(userId: string, query: AnalysisListQuery) {
     promptVersion: {
       prompt: {
         userId,
-        ...(query.search ? { title: { contains: query.search } } : {}),
+        ...(query.search ? { title: containsText(query.search) } : {}),
         ...(query.promptId ? { id: query.promptId } : {}),
       },
     },

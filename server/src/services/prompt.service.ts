@@ -1,5 +1,5 @@
 import { PROMPT_LIMITS, type PromptCategory, type VersionSource } from '../config/constants.js';
-import { prisma } from '../lib/prisma.js';
+import { containsText, prisma } from '../lib/prisma.js';
 import { analysisSummaryInclude, toAnalysisSummary } from '../models/analysis.model.js';
 import { maskSensitiveText } from '../scanners/patterns/leakage.patterns.js';
 import { AppError } from '../utils/AppError.js';
@@ -41,7 +41,7 @@ export async function listPrompts(userId: string, query: { search?: string | und
   const prompts = await prisma.prompt.findMany({
     where: {
       userId,
-      ...(query.search ? { title: { contains: query.search } } : {}),
+      ...(query.search ? { title: containsText(query.search) } : {}),
       ...(query.category ? { category: query.category } : {}),
     },
     orderBy: { updatedAt: 'desc' },

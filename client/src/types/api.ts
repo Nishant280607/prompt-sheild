@@ -352,6 +352,8 @@ export interface VulnerabilityReport {
 export interface DeploymentStatus {
   storage: 'persistent' | 'temporary';
   sessions: 'persistent' | 'temporary';
+  /** Database engine in use (absent on older servers). */
+  engine?: 'sqlite' | 'libsql' | 'postgres';
 }
 
 export interface SystemStatus {

@@ -19,6 +19,8 @@ import { formatDate } from '../utils/format';
 import { getErrorMessage } from '../utils/helpers';
 import { passwordSchema } from './RegisterPage';
 
+const DATABASE_LABELS = { postgres: 'PostgreSQL database', libsql: 'Turso / libSQL database', sqlite: 'SQLite file' } as const;
+
 const ANALYSIS_MODES = [
   {
     title: 'Local',
@@ -165,6 +167,9 @@ export default function SettingsPage() {
                   <Badge tone={system.deployment.storage === 'persistent' ? 'success' : 'warning'}>
                     {system.deployment.storage === 'persistent' ? 'Persistent' : 'Temporary'}
                   </Badge>
+                  {system.deployment.storage === 'persistent' && system.deployment.engine && (
+                    <span className="mt-1 block text-xs text-slate-500">{DATABASE_LABELS[system.deployment.engine]}</span>
+                  )}
                   {system.deployment.storage === 'temporary' && (
                     <span className="mt-1 block text-xs text-slate-500">
                       No database is connected, so accounts and analyses reset when the server restarts.

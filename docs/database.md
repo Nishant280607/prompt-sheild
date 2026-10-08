@@ -3,7 +3,8 @@
 SQLite accessed through **Prisma ORM 7** (`server/prisma/schema.prisma`) using a driver adapter chosen from `DATABASE_URL`:
 
 - `file:` URLs → `@prisma/adapter-better-sqlite3` (local development, tests),
-- `libsql://` / `https://` URLs → `@prisma/adapter-libsql` over HTTP (a hosted [Turso](https://turso.tech) database, used for persistent data on Vercel).
+- `libsql://` / `https://` URLs → `@prisma/adapter-libsql` over HTTP (a hosted [Turso](https://turso.tech) database),
+- `postgres://` / `postgresql://` URLs → `@prisma/adapter-pg` (Neon, Prisma Postgres, Supabase or any PostgreSQL server). This uses a second Prisma client generated from the same `schema.prisma` (`scripts/postgres-schema.mjs` writes `src/generated/schema.postgres.prisma`), so there is still one schema to maintain. Text search uses `mode: 'insensitive'` on PostgreSQL to match SQLite's case-insensitive `LIKE`.
 
 Migrations live in `server/prisma/migrations` and are applied with `npm run db:deploy`. The API also applies pending migrations itself on start-up (`server/src/db/migrate.ts`, recorded in Prisma's `_prisma_migrations` table), because serverless deployments have no CLI step: `scripts/embed-migrations.mjs` copies the SQL files into `src/generated/migrations.ts` on install and build.
 
@@ -41,3 +42,5 @@ All foreign keys use `ON DELETE CASCADE`: deleting a user removes their prompts,
 npm run db:migrate -- --name describe_your_change   # creates + applies a migration, regenerates the client
 ```
 Commit the generated folder in `prisma/migrations`. `db:migrate` also refreshes `src/generated/migrations.ts`, so deployed servers apply the new migration on their next start.
+
+PostgreSQL deployments use the migrations in `prisma/migrations-postgres` (same folder names, PostgreSQL SQL). After creating a SQLite migration, add the matching PostgreSQL one with the same folder name - for example generate it with `npx prisma migrate diff --from-schema <previous schema> --to-schema src/generated/schema.postgres.prisma --script` against a PostgreSQL schema. A unit test fails if the two folders get out of step, and `TEST_DATABASE_URL=postgres://... npm run test:server` runs the whole API test suite on PostgreSQL.

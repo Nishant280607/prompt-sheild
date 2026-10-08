@@ -26,6 +26,7 @@ function deploymentStatus() {
   return {
     storage: env.database.temporary ? ('temporary' as const) : ('persistent' as const),
     sessions: isJwtSecretPersistent() ? ('persistent' as const) : ('temporary' as const),
+    engine: env.database.driver,
   };
 }
 

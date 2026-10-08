@@ -1,0 +1,3 @@
+# PostgreSQL migrations - the same schema as ../migrations (SQLite), applied by the server on
+# start-up when DATABASE_URL is a postgres:// URL. Keep both folders in step.
+provider = "postgresql"

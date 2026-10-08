@@ -219,8 +219,8 @@ npm start            # run the compiled API (after npm run build)
 ## Running tests
 
 ```bash
-npm test             # backend (81 tests) + frontend tests
-npm run test:server  # Vitest + Supertest
+npm test             # backend (88 tests) + frontend tests
+npm run test:server  # Vitest + Supertest (SQLite; add TEST_DATABASE_URL=postgres://... to run the same tests on PostgreSQL)
 npm run test:client  # Vitest + Testing Library
 npm run test:smoke   # end-to-end demo flow against a running API
 npm run lint         # ESLint for both workspaces
@@ -233,16 +233,16 @@ npm run typecheck    # TypeScript for both workspaces
 
 **Connect a database so accounts are kept** (one-time, free):
 
-1. In the Vercel project, open **Storage** (or the Marketplace), add **Turso Cloud** and connect it to this project. It adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+1. In the Vercel project, open **Storage**, create a database and connect it to this project. Any of these work: **Neon** or **Prisma Postgres** (PostgreSQL), **Supabase** (PostgreSQL) or **Turso Cloud** (libSQL). The integration adds the connection variables for you.
 2. Redeploy (Deployments → ⋯ → Redeploy). The tables, a session secret and the demo account are created automatically.
 
 | Variable | Needed? | Why |
 | --- | --- | --- |
-| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (or `DATABASE_URL` + `DATABASE_AUTH_TOKEN`) | For permanent accounts | A Turso (libSQL) database, set by the integration above or copied from [turso.tech](https://turso.tech). |
+| `DATABASE_URL` / `POSTGRES_URL` (PostgreSQL) or `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (libSQL) | For permanent accounts | Set by the Storage integration above. The first usable one of `DATABASE_URL`, `TURSO_DATABASE_URL`, `POSTGRES_URL` is used; `sslmode=require` in a PostgreSQL URL means an encrypted connection, as in `psql`. |
 | `JWT_SECRET` | Optional | With a database connected, a random session secret is generated once and stored in it. Set this only to choose your own (32+ random characters). |
 | `OPENAI_API_KEY` / `GEMINI_API_KEY` | Optional | Turns on AI Enhanced mode (see *Local vs AI Enhanced mode* in the app's Settings page). |
 
-Without a database the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time), and the login page says so. `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
+Without a database the API still works, but uses a **temporary** SQLite file: accounts and analyses disappear when Vercel starts a new instance (the demo account is re-created each time), and the login page says so. `GET /api/health` shows `"storage"` and `"sessions"` as `persistent` or `temporary` and the database `"engine"`, so you can check the setup after deploying; `GET /api/health/live` answers even when the API cannot start and says at which step it failed.
 
 ## Demo credentials and demo flow
 

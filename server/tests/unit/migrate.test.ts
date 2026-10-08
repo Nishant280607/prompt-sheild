@@ -4,7 +4,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { applyMigrations } from '../../src/db/migrate.js';
-import { MIGRATIONS } from '../../src/generated/migrations.js';
+import { MIGRATIONS, POSTGRES_MIGRATIONS } from '../../src/generated/migrations.js';
 
 const dirs: string[] = [];
 function tempDatabase() {
@@ -19,6 +19,12 @@ afterEach(() => {
 });
 
 describe('start-up migrations', () => {
+  it('keeps the SQLite and PostgreSQL migrations in step', () => {
+    // A schema change needs a migration in prisma/migrations and prisma/migrations-postgres.
+    expect(POSTGRES_MIGRATIONS.map((m) => m.name)).toEqual(MIGRATIONS.map((m) => m.name));
+    for (const migration of POSTGRES_MIGRATIONS) expect(migration.sql).not.toMatch(/\bDATETIME\b/);
+  });
+
   it('embeds every migration folder', () => {
     expect(MIGRATIONS.length).toBeGreaterThan(0);
     for (const migration of MIGRATIONS) {

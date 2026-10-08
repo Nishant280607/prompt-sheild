@@ -41,6 +41,7 @@ const EnvSchema = z.object({
   DATABASE_AUTH_TOKEN: optionalString,
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,
+  POSTGRES_URL: optionalString,
   JWT_SECRET: optionalString,
   JWT_EXPIRES_IN: z.string().default('8h'),
   BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
@@ -119,52 +120,114 @@ export function resolveJwtSecret(
   return { secret, persistent: true };
 }
 
+export type DatabaseDriver = 'sqlite' | 'libsql' | 'postgres';
+
 export interface DatabaseConfig {
-  /** `file:` URL (SQLite through better-sqlite3) or a libSQL / Turso URL. */
+  /** `file:` URL (SQLite through better-sqlite3), a libSQL / Turso URL or a PostgreSQL URL. */
   url: string;
   authToken: string;
-  driver: 'sqlite' | 'libsql';
+  driver: DatabaseDriver;
   /** True when data does not survive a restart (a local file on a serverless instance). */
   temporary: boolean;
 }
 
-const LIBSQL_URL = /^(libsql|https?|wss?):\/\//i;
+interface DatabaseVars {
+  DATABASE_URL?: string | undefined;
+  DATABASE_AUTH_TOKEN?: string | undefined;
+  TURSO_DATABASE_URL?: string | undefined;
+  TURSO_AUTH_TOKEN?: string | undefined;
+  /** Set by Vercel's Postgres integrations (Neon, Supabase, Prisma Postgres). */
+  POSTGRES_URL?: string | undefined;
+}
+
+type UrlKind = 'libsql' | 'postgres' | 'file' | 'prisma-accelerate' | 'other-scheme' | 'not-a-url';
+
+/** Remove whitespace and quotes pasted around a value, e.g. "libsql://..." copied from a .env file. */
+export function cleanEnvValue(value: string | undefined): string | undefined {
+  let cleaned = value?.trim();
+  while (cleaned && cleaned.length >= 2 && /^(["']).*\1$/s.test(cleaned)) cleaned = cleaned.slice(1, -1).trim();
+  return cleaned || undefined;
+}
+
+function classifyUrl(url: string): UrlKind {
+  if (/^(libsql|https?|wss?):\/\//i.test(url)) return 'libsql';
+  if (/^postgres(ql)?:\/\//i.test(url)) return 'postgres';
+  if (/^file:/i.test(url)) return 'file';
+  if (/^prisma(\+postgres)?:\/\//i.test(url)) return 'prisma-accelerate';
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return 'other-scheme';
+  return 'not-a-url';
+}
 
 /**
- * Pick the database: DATABASE_URL (or TURSO_DATABASE_URL, as set by the Vercel <-> Turso
- * integration). Without one, local development uses server/dev.db and serverless hosts use a
- * file in the writable temp folder - fine for a demo, but it is reset with each new instance.
+ * Explain an unusable database setting without revealing it (only the scheme is mentioned).
+ */
+function unusableUrlMessage(name: string, url: string, kind: UrlKind): string {
+  const supported = 'Use a Turso/libSQL URL (libsql://...), a PostgreSQL URL (postgres://...) or a SQLite file (file:./dev.db).';
+  if (kind === 'prisma-accelerate') {
+    return `${name} is a Prisma Accelerate URL (prisma+postgres://), which cannot be used directly. Use the direct connection URL (postgres://...) instead - the Vercel Prisma Postgres integration also provides it as POSTGRES_URL.`;
+  }
+  if (kind === 'other-scheme') {
+    const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1] ?? 'unknown';
+    return `${name} uses an unsupported database type (${scheme}://). ${supported}`;
+  }
+  const tokenName = name === 'TURSO_DATABASE_URL' ? 'TURSO_AUTH_TOKEN' : 'DATABASE_AUTH_TOKEN';
+  const looksLikeToken = /^eyJ[\w-]+\./.test(url);
+  return looksLikeToken
+    ? `${name} contains an auth token instead of a database URL. Put the URL (libsql://...) in ${name} and the token in ${tokenName}.`
+    : `${name} is not a database URL (it should start with libsql://, postgres:// or file:). ${supported}`;
+}
+
+/**
+ * Follow libpq's meaning of sslmode for PostgreSQL URLs: "require" encrypts the connection (as
+ * psql does) and "verify-full" also checks the certificate. Without this, the pg driver treats
+ * "require" as "verify-full", which fails on providers that use a private certificate authority.
+ */
+export function normalizePostgresUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.searchParams.has('sslmode') && !parsed.searchParams.has('uselibpqcompat')) {
+      parsed.searchParams.set('uselibpqcompat', 'true');
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Pick the database. The first of DATABASE_URL, TURSO_DATABASE_URL (Vercel Turso integration)
+ * and POSTGRES_URL (Vercel Postgres integrations) that holds a libSQL or PostgreSQL URL is used.
+ * Without one, local development uses server/dev.db and serverless hosts use a file in the
+ * writable temp folder - fine for a demo, but it is reset with each new instance.
  */
 export function resolveDatabaseConfig(
-  vars: {
-    DATABASE_URL?: string | undefined;
-    DATABASE_AUTH_TOKEN?: string | undefined;
-    TURSO_DATABASE_URL?: string | undefined;
-    TURSO_AUTH_TOKEN?: string | undefined;
-  },
+  vars: DatabaseVars,
   options: { serverless: boolean; tmpDir?: string; warn?: (message: string) => void },
 ): DatabaseConfig {
   const warn = options.warn ?? console.warn;
   const tmpDir = options.tmpDir ?? os.tmpdir();
-  const databaseUrl = vars.DATABASE_URL?.trim();
-  const tursoUrl = vars.TURSO_DATABASE_URL?.trim();
+  const candidates = (['DATABASE_URL', 'TURSO_DATABASE_URL', 'POSTGRES_URL'] as const)
+    .map((name) => {
+      const url = cleanEnvValue(vars[name]);
+      return url ? { name, url, kind: classifyUrl(url) } : null;
+    })
+    .filter((candidate) => candidate !== null);
 
-  // A libSQL URL in either variable wins, e.g. a leftover DATABASE_URL=file:./dev.db next to the
-  // TURSO_DATABASE_URL added by the Vercel integration.
-  if (databaseUrl && LIBSQL_URL.test(databaseUrl)) {
-    const authToken = (vars.DATABASE_AUTH_TOKEN ?? vars.TURSO_AUTH_TOKEN ?? '').trim();
-    return { url: databaseUrl, authToken, driver: 'libsql', temporary: false };
+  // A database server wins over a SQLite file, e.g. a leftover DATABASE_URL=file:./dev.db next to
+  // the TURSO_DATABASE_URL or POSTGRES_URL added by a Vercel integration.
+  const remote = candidates.find((candidate) => candidate.kind === 'libsql' || candidate.kind === 'postgres');
+  if (remote?.kind === 'postgres') {
+    return { url: normalizePostgresUrl(remote.url), authToken: '', driver: 'postgres', temporary: false };
   }
-  if (tursoUrl && LIBSQL_URL.test(tursoUrl)) {
-    const authToken = (vars.TURSO_AUTH_TOKEN ?? vars.DATABASE_AUTH_TOKEN ?? '').trim();
-    return { url: tursoUrl, authToken, driver: 'libsql', temporary: false };
+  if (remote) {
+    const tokens = remote.name === 'TURSO_DATABASE_URL' ? [vars.TURSO_AUTH_TOKEN, vars.DATABASE_AUTH_TOKEN] : [vars.DATABASE_AUTH_TOKEN, vars.TURSO_AUTH_TOKEN];
+    const authToken = tokens.map(cleanEnvValue).find(Boolean) ?? '';
+    return { url: remote.url, authToken, driver: 'libsql', temporary: false };
   }
-  const configured = databaseUrl ?? tursoUrl;
-  if (configured && !configured.startsWith('file:')) {
-    throw new ConfigError(
-      'DATABASE_URL must be a SQLite file URL (file:./dev.db) or a libSQL/Turso URL (libsql://<db>.turso.io).',
-    );
-  }
+
+  const unusable = candidates.find((candidate) => candidate.kind !== 'file');
+  if (unusable) throw new ConfigError(unusableUrlMessage(unusable.name, unusable.url, unusable.kind));
+  const configured = candidates.find((candidate) => candidate.kind === 'file')?.url;
 
   if (!options.serverless) {
     return {
@@ -187,7 +250,7 @@ export function resolveDatabaseConfig(
   }
   warn(
     '[config] Using a temporary SQLite database: accounts and analyses are reset when the serverless instance restarts. ' +
-      'Set DATABASE_URL (libsql://...) and DATABASE_AUTH_TOKEN to a Turso database to keep data.',
+      'Connect a database (Turso or PostgreSQL, e.g. through Vercel Storage) to keep data.',
   );
   return { url: `file:${target}`, authToken: '', driver: 'sqlite', temporary: true };
 }
