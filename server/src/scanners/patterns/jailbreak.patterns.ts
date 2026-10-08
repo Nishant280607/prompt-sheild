@@ -1,4 +1,15 @@
-import { notDefensive, type PatternRule, type ProtectionRule } from '../ruleEngine.js';
+import { notDefensive, type MatchInfo, type PatternRule, type ProtectionRule } from '../ruleEngine.js';
+
+/** Phones, browsers, operating systems, IDEs and frameworks have real developer and debug modes. */
+const SOFTWARE_CONTEXT =
+  /\b(?:android|iphone|ios|ipad|phones?|mobile|tablets?|devices?|chrome(?:book)?|firefox|safari|browsers?|extensions?|windows|macos|mac|linux|ubuntu|router|tv|xbox|playstation|laptop|pc|computer|bios|firmware|flask|django|rails|laravel|spring\s+boot|react|node(?:\.js)?|npm|webpack|vite|python|java|kotlin|xcode|android\s+studio|vs\s?code|visual\s+studio|intellij|unity|unreal|minecraft|roblox|github|wordpress|shopify|excel|scripts?|programs?)\b/i;
+
+/** True when the same sentence is about a phone, browser, app framework etc., not the model. */
+function aboutSoftware(match: MatchInfo, text: string): boolean {
+  const before = text.slice(Math.max(0, match.start - 80), match.start).split(/[.!?\n]/).pop() ?? '';
+  const after = text.slice(match.end, match.end + 80).split(/[.!?\n]/)[0] ?? '';
+  return SOFTWARE_CONTEXT.test(before) || SOFTWARE_CONTEXT.test(after);
+}
 
 /** Jailbreak rules: attempts to make the model ignore its safety constraints. */
 export const JAILBREAK_RULES: readonly PatternRule[] = [
@@ -27,7 +38,8 @@ export const JAILBREAK_RULES: readonly PatternRule[] = [
     patterns: [
       /\b(?:developer|dev|debug|god|admin|jailbreak|jailbroken|unrestricted|unfiltered|uncensored|unlocked|unshackled|evil|chaos|sudo)\s+mode\b/gi,
     ],
-    accept: notDefensive,
+    // "developer mode on my Android phone" or "Flask debug mode" is not a jailbreak
+    accept: (match, text) => notDefensive(match, text) && !aboutSoftware(match, text),
     explanation:
       'The prompt asks the model to enter a special "mode" without restrictions. These modes do not exist in the model; the phrase is a social-engineering technique to bypass safeguards.',
     recommendation: 'REC_REVIEW_ROLE_OVERRIDES',
@@ -66,8 +78,9 @@ export const JAILBREAK_RULES: readonly PatternRule[] = [
     title: 'Refusal suppression',
     severity: 'HIGH',
     patterns: [
-      /\b(?:never|don't|do\s+not|must\s+not|cannot|can't|won't|will\s+not|should\s+not)\s+(?:ever\s+)?(?:refuse|decline|reject)\s+(?:any|anything|a\s+request|requests|to\s+answer|a\s+question|questions)\b/gi,
-      /\b(?:you\s+)?(?:always|must|will)\s+(?:comply|obey)\s+(?:with\s+)?(?:every|any|all)\s+(?:user\s+)?(?:requests?|commands?|orders?|demands?)\b/gi,
+      // also third-person wording used by persona jailbreaks: "Zed never refuses a request"
+      /\b(?:never|don't|do\s+not|doesn't|does\s+not|must\s+not|cannot|can't|won't|will\s+not|should\s+not)\s+(?:ever\s+)?(?:refuses?|declines?|rejects?)\s+(?:any|anything|a\s+request|requests|to\s+answer|a\s+question|questions)\b/gi,
+      /\b(?:you\s+)?(?:always|must|will)\s+(?:compl(?:y|ies)|obeys?)\s+(?:with\s+)?(?:every|any|all)\s+(?:user\s+)?(?:requests?|commands?|orders?|demands?)\b/gi,
     ],
     explanation:
       'The prompt forbids the model from refusing requests. Removing the ability to refuse means harmful requests will be answered instead of declined.',
@@ -78,8 +91,8 @@ export const JAILBREAK_RULES: readonly PatternRule[] = [
     title: 'Disclaimer or warning suppression',
     severity: 'MEDIUM',
     patterns: [
-      /\b(?:never|don't|do\s+not)\s+(?:say|tell\s+(?:me|the\s+user))\s+(?:that\s+)?(?:you\s+)?(?:can(?:no|')t|cannot|are\s+(?:unable|not\s+able)|won't)\b/gi,
-      /\b(?:never|don't|do\s+not|no)\s+(?:add|include|give|provide|use|mention)\s+(?:any\s+)?(?:warnings?|disclaimers?|caveats?|moralizing|moralising|lectures?|ethical\s+(?:notes|commentary|considerations))\b/gi,
+      /\b(?:never|don't|do\s+not|doesn't|does\s+not)\s+(?:says?|tells?\s+(?:me|the\s+user))\s+(?:that\s+)?(?:you\s+|it\s+|he\s+|she\s+|they\s+)?(?:can(?:no|')t|cannot|are\s+(?:unable|not\s+able)|is\s+(?:unable|not\s+able)|won't)\b/gi,
+      /\b(?:never|don't|do\s+not|doesn't|does\s+not|no)\s+(?:adds?|includes?|gives?|provides?|uses?|mentions?)\s+(?:any\s+)?(?:warnings?|disclaimers?|caveats?|moralizing|moralising|lectures?|ethical\s+(?:notes|commentary|considerations))\b/gi,
       /\bno\s+matter\s+(?:what|how)\b[^.!?\n]{0,40}\b(?:answer|respond|comply|obey)\b/gi,
     ],
     explanation:
@@ -141,7 +154,7 @@ export const JAILBREAK_RULES: readonly PatternRule[] = [
     severity: 'HIGH',
     patterns: [
       /\b(?:opposite|reverse)\s+(?:mode|day|persona)\b/gi,
-      /\b(?:evil|dark|shadow|unfiltered|uncensored|rogue)\s+(?:twin|version|persona|alter\s+ego|ai|assistant|counterpart)\b/gi,
+      /\b(?:evil|dark|shadow|unfiltered|uncensored|unrestricted|amoral|rogue)\s+(?:twin|version|persona|alter\s+ego|ai|assistant|chatbot|bot|llm|counterpart)\b/gi,
     ],
     accept: notDefensive,
     explanation:

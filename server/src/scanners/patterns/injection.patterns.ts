@@ -1,4 +1,20 @@
-import { notDefensive, type PatternRule, type ProtectionRule } from '../ruleEngine.js';
+import {
+  notDefensive,
+  type MatchInfo,
+  type PatternRule,
+  type ProtectionRule,
+} from '../ruleEngine.js';
+
+/**
+ * The opening of a prompt is where its author sets the role ("You are now a math tutor for ...");
+ * the same words later in the text switch the role, which is the manipulation.
+ */
+function atOpening(match: MatchInfo, text: string): boolean {
+  const before = text.slice(0, match.start);
+  return before.length <= 80 && !/[.!?]/.test(before) && (before.match(/\n/g)?.length ?? 0) <= 1;
+}
+const SUSPICIOUS_ROLE =
+  /\b(?:unrestricted|unfiltered|uncensored|evil|rogue|DAN|jailbr\w*|anything\s+now|(?:no|without(?:\s+any)?)\s+(?:rules|restrictions|limits|filters))\b/i;
 
 /**
  * Prompt injection rules.
@@ -52,13 +68,26 @@ export const INJECTION_RULES: readonly PatternRule[] = [
       /\byou\s+are\s+(?:now|no\s+longer)\b/gi,
       /\bfrom\s+now\s+on,?\s+you\s+(?:are|will|must|shall|act|behave|respond)\b/gi,
       /\b(?:act|behave|respond)\s+as\s+(?:if\s+you\s+(?:were|are)\s+)?(?:an?\s+)?(?:unrestricted|unfiltered|uncensored|different|new|evil|rogue)\b/gi,
-      /\bpretend\s+(?:to\s+be|you\s+are|that\s+you\s+are)\b/gi,
       /\b(?:switch|change)\s+(?:your\s+)?(?:role|persona|identity|character)\b/gi,
       /\byour\s+new\s+(?:role|persona|identity|name|instructions?)\s+(?:is|are)\b/gi,
     ],
-    accept: notDefensive,
+    accept: (match, text) =>
+      notDefensive(match, text) &&
+      !(atOpening(match, text) && !SUSPICIOUS_ROLE.test(text.slice(match.start, match.end + 60))),
     explanation:
       'The text tries to change the identity or role of the model mid-conversation. Attackers use role switches to escape the behaviour the application intended.',
+    recommendation: 'REC_INSTRUCTION_HIERARCHY',
+  },
+  {
+    // Low on its own: "Pretend to be a tour guide" is a normal persona. Role-play combined with
+    // "no rules" is caught by the jailbreak rules (JB-007).
+    id: 'INJ-013',
+    title: 'Role-play instruction',
+    severity: 'LOW',
+    patterns: [/\bpretend\s+(?:to\s+be|you\s+are|you're|that\s+you\s+are)\b/gi],
+    accept: notDefensive,
+    explanation:
+      'The text asks the model to pretend to be someone else. A persona is fine in your own system prompt, but the same wording inside user or retrieved content is a way to change how the model behaves.',
     recommendation: 'REC_INSTRUCTION_HIERARCHY',
   },
   {

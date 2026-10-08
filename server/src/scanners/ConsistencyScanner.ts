@@ -56,7 +56,7 @@ function findAffirmed(text: string, pattern: RegExp): RegExpExecArray | null {
 }
 
 const FORMAT_DIRECTIVE =
-  /\b(?:respond|reply|answer|output|return|format|formatted|structured?|write|provide|present|use|give)\b[^.!?\n]{0,60}\b(?:json|xml|yaml|csv|table|bullet(?:ed)?|numbered\s+list|markdown|plain\s+text|sections?|headings?|following\s+(?:format|structure|template)|template)\b/i;
+  /\b(?:respond|reply|answer|output|return|format|formatted|structured?|write|provide|present|use|give)\b[^.!?\n]{0,60}\b(?:json|xml|yaml|csv|table|bullet(?:ed)?|numbered\s+list|markdown|plain\s+(?:text|paragraphs?|prose|sentences)|prose|sections?|headings?|following\s+(?:format|structure|template)|template)\b/i;
 const FORMAT_KINDS: ReadonlyArray<{ kind: string; label: string; pattern: RegExp; serialization?: boolean }> = [
   { kind: 'json', label: 'JSON', pattern: /\bjson\b/i, serialization: true },
   { kind: 'xml', label: 'XML', pattern: /\bxml\b/i, serialization: true },
@@ -65,16 +65,20 @@ const FORMAT_KINDS: ReadonlyArray<{ kind: string; label: string; pattern: RegExp
   { kind: 'table', label: 'Table', pattern: /\btable\b/i },
   { kind: 'bullets', label: 'Bullet list', pattern: /\b(?:bullet(?:ed)?(?:\s+points?|\s+list)?|numbered\s+list)\b/i },
   { kind: 'markdown', label: 'Markdown', pattern: /\bmarkdown\b/i },
-  { kind: 'plain', label: 'Plain text', pattern: /\bplain\s+text\b/i },
+  { kind: 'plain', label: 'Plain text', pattern: /\b(?:plain\s+(?:text|paragraphs?|prose|sentences)|prose)\b/i },
   { kind: 'sections', label: 'Structured sections', pattern: /\b(?:sections?|headings?|template|following\s+(?:format|structure))\b/i },
 ];
 
 function evaluateFormat(content: string): ProbeEvaluation {
   const kinds: Array<(typeof FORMAT_KINDS)[number]> = [];
-  for (const sentence of splitSentences(content)) {
+  const sentenceOf = new Map<string, number>();
+  for (const [index, sentence] of splitSentences(content).entries()) {
     if (!FORMAT_DIRECTIVE.test(sentence)) continue;
     for (const kind of FORMAT_KINDS) {
-      if (!kinds.includes(kind) && findAffirmed(sentence, kind.pattern)) kinds.push(kind);
+      if (!kinds.includes(kind) && findAffirmed(sentence, kind.pattern)) {
+        kinds.push(kind);
+        sentenceOf.set(kind.kind, index);
+      }
     }
   }
   const hasFormatLabel = /^\s*(?:output|response|answer)?\s*format\s*:/im.test(content) || /```json/i.test(content);
@@ -92,7 +96,8 @@ function evaluateFormat(content: string): ProbeEvaluation {
       conflict: { first: firstSerial.label, second: secondSerial.label },
     };
   }
-  if (firstSerial && plain) {
+  // In one sentence plain text describes part of the output: "Return JSON with a summary written in plain sentences".
+  if (firstSerial && plain && sentenceOf.get(firstSerial.kind) !== sentenceOf.get(plain.kind)) {
     return {
       status: 'CONFLICTING',
       detail: `Both ${firstSerial.label} and plain-text output are requested.`,
