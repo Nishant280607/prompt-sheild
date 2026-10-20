@@ -1,6 +1,6 @@
 import { Activity, FilePlus, Gauge, Lightbulb, ShieldAlert, Upload } from 'lucide-react';
 import { Link } from 'react-router';
-import { ActivityChart, CategoryRadarChart, ScoreTrendChart, SeverityChart } from '../components/analysis/AnalysisChart';
+import { ActivityChart, CategoryRadarChart } from '../components/analysis/AnalysisChart';
 import { CATEGORY_ICONS } from '../components/analysis/SecurityCategoryCard';
 import { RiskBadge } from '../components/ui/Badge';
 import { buttonClasses } from '../components/ui/Button';
@@ -135,43 +135,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="p-5">
-          <CardHeader title="Security score trend" subtitle="Most recent completed analyses" />
-          <div className="mt-4">
-            <ScoreTrendChart data={data.trend} />
-          </div>
-        </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <CardHeader title="Risk map" subtitle="Category scores (higher is safer)" />
           <CategoryRadarChart data={radar} />
         </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <CardHeader title="Analysis activity" subtitle="Analyses per day, last 14 days" />
           <div className="mt-4">
             <ActivityChart data={data.activity} />
           </div>
         </Card>
-        <Card className="p-5">
-          <CardHeader title="Vulnerability distribution" subtitle="Open findings by severity" />
-          <div className="mt-4">
-            <SeverityChart counts={data.vulnerabilities.bySeverity} />
-          </div>
-        </Card>
       </div>
 
       <Card className="p-5">
-        <CardHeader
-          title="Recent analyses"
-          action={
-            <Link to="/history" className="text-sm text-accent hover:underline">
-              View history
-            </Link>
-          }
-        />
+        <CardHeader title="Recent analyses" />
         <ul className="mt-4 divide-y divide-white/[0.05]">
           {data.recentAnalyses.map((analysis) => (
             <li key={analysis.id}>

@@ -1,6 +1,5 @@
 import {
   ChevronRight,
-  Clock,
   FilePlus,
   GitCompare,
   LayoutDashboard,
@@ -29,7 +28,6 @@ const NAV = [
   {
     group: 'Insights',
     items: [
-      { to: '/history', label: 'Analysis History', icon: Clock },
       { to: '/prompts', label: 'Prompts & Versions', icon: GitCompare },
       { to: '/recommendations', label: 'Recommendations', icon: Lightbulb },
     ],
