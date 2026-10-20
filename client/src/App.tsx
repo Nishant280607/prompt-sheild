@@ -14,7 +14,6 @@ const AnalysisProgressPage = lazy(() => import('./pages/AnalysisProgressPage'));
 const AnalysisResultPage = lazy(() => import('./pages/AnalysisResultPage'));
 const VulnerabilityReportPage = lazy(() => import('./pages/VulnerabilityReportPage'));
 const RecommendationsPage = lazy(() => import('./pages/RecommendationsPage'));
-const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const PromptsPage = lazy(() => import('./pages/PromptsPage'));
 const PromptVersionsPage = lazy(() => import('./pages/PromptVersionsPage'));
 const VersionComparisonPage = lazy(() => import('./pages/VersionComparisonPage'));
@@ -53,7 +52,6 @@ export default function App() {
           <Route path="/analyses/:id/report" element={<VulnerabilityReportPage />} />
           <Route path="/analyses/:id/pdf" element={<PdfPreviewPage />} />
           <Route path="/recommendations" element={<RecommendationsPage />} />
-          <Route path="/history" element={<HistoryPage />} />
           <Route path="/prompts" element={<PromptsPage />} />
           <Route path="/prompts/:id" element={<PromptVersionsPage />} />
           <Route path="/prompts/:id/edit" element={<NewAnalysisPage />} />

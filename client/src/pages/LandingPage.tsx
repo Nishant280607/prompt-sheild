@@ -2,14 +2,12 @@ import {
   ArrowRight,
   Braces,
   Coins,
-  Database,
   Download,
   FileText,
   GitCompare,
   KeyRound,
   Layers,
   Lock,
-  Server,
   ShieldAlert,
   Sparkles,
   Workflow,
@@ -144,7 +142,6 @@ export default function LandingPage() {
           <a href="#checks" className="hover:text-white">Security checks</a>
           <a href="#how" className="hover:text-white">How it works</a>
           <a href="#score" className="hover:text-white">Scoring</a>
-          <a href="#architecture" className="hover:text-white">Architecture</a>
         </nav>
         <div className="flex items-center gap-2">
           {authed ? (
@@ -179,22 +176,6 @@ export default function LandingPage() {
             <p className="mt-6 text-xs text-slate-500">Works offline in Local Analysis Mode · No API key required</p>
           </div>
           <HeroScan />
-        </section>
-
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8" aria-labelledby="why">
-          <h2 id="why" className="text-3xl font-semibold">Why prompt security matters</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              ['Prompts are attack surface', 'User messages, documents and tool results end up inside prompts. Text that says "ignore previous instructions" can hijack an application.'],
-              ['Prompts leak', 'System prompts are routinely extracted. Anything inside them - keys, internal rules, customer data - should be treated as public.'],
-              ['Behaviour must be predictable', 'Ambiguous or conflicting instructions make responses vary between runs, which breaks tests, UX and compliance.'],
-            ].map(([title, text]) => (
-              <div key={title} className="glass rounded-2xl p-6">
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{text}</p>
-              </div>
-            ))}
-          </div>
         </section>
 
         <section id="checks" className="mx-auto max-w-7xl scroll-mt-10 px-5 py-16 sm:px-8" aria-labelledby="checks-title">
@@ -270,31 +251,6 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </section>
-
-        <section id="architecture" className="mx-auto max-w-7xl scroll-mt-10 px-5 py-16 sm:px-8" aria-labelledby="arch-title">
-          <h2 id="arch-title" className="text-3xl font-semibold">Architecture overview</h2>
-          <div className="glass mt-8 grid items-center gap-4 rounded-2xl p-6 lg:grid-cols-[1fr_auto_1.4fr_auto_1fr]">
-            <div className="rounded-xl border border-white/10 p-4 text-center">
-              <p className="font-semibold">React client</p>
-              <p className="mt-1 text-xs text-slate-400">Vite · Tailwind · Recharts</p>
-            </div>
-            <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-slate-600 lg:rotate-0" aria-hidden="true" />
-            <div className="rounded-xl border border-accent/30 bg-accent/[0.05] p-4">
-              <p className="text-center font-semibold">Express REST API</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] text-slate-300 sm:grid-cols-5">
-                {['Injection', 'Jailbreak', 'Leakage', 'Consistency', 'Tokens'].map((scanner) => (
-                  <span key={scanner} className="rounded-md border border-white/10 bg-black/20 px-1 py-1">{scanner}</span>
-                ))}
-              </div>
-              <p className="mt-3 text-center text-xs text-slate-400">Scoring → Recommendations → Reports (PDFKit)</p>
-            </div>
-            <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-slate-600 lg:rotate-0" aria-hidden="true" />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><Database className="h-4 w-4 text-accent" aria-hidden="true" /> SQLite via Prisma ORM</div>
-              <div className="flex items-center gap-2 rounded-xl border border-dashed border-white/10 p-3 text-sm text-slate-400"><Server className="h-4 w-4 text-violet-glow" aria-hidden="true" /> Optional OpenAI / Gemini</div>
-            </div>
           </div>
         </section>
 
