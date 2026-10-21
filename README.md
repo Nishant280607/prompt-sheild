@@ -182,7 +182,7 @@ npm run dev          # starts API (http://localhost:5000) and UI (http://localho
 | `DATABASE_URL`                    | `file:./dev.db`            | SQLite file (relative to `server/`) or a Turso/libSQL URL (`libsql://…`) |
 | `DATABASE_AUTH_TOKEN`             | empty                      | Turso auth token (`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` also work) |
 | `JWT_SECRET`                      | generated                  | Signing secret (≥ 32 chars in production). If unset, one is generated and stored in the database (or kept in memory when there is no persistent database) |
-| `JWT_EXPIRES_IN`                  | `8h`                       | Session length                                     |
+| `JWT_EXPIRES_IN`                  | `30d`                      | Session length                                     |
 | `BCRYPT_ROUNDS`                   | `12`                       | Password hashing cost                              |
 | `DEMO_ACCOUNT`                    | `true`                     | Create the demo account on start-up when it is missing |
 | `TRUST_PROXY`                     | `1` on Vercel, else off    | Express `trust proxy` (client IP for rate limits)  |

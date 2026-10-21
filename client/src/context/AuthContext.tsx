@@ -51,9 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(expiryTimer.current);
       const expiresAt = tokenExpiry(token);
       if (!expiresAt) return;
-      // setTimeout cannot handle very long delays; sessions are hours long so cap to 24h.
-      const delay = Math.min(expiresAt - Date.now(), 24 * 60 * 60 * 1000);
-      expiryTimer.current = window.setTimeout(() => logout('expired'), Math.max(delay, 0));
+      // setTimeout overflows above ~24.8 days, so long sessions are re-checked once a day
+      // instead of signing the user out early.
+      const MAX_DELAY = 24 * 60 * 60 * 1000;
+      const arm = () => {
+        const remaining = expiresAt - Date.now();
+        expiryTimer.current =
+          remaining > MAX_DELAY
+            ? window.setTimeout(arm, MAX_DELAY)
+            : window.setTimeout(() => logout('expired'), Math.max(remaining, 0));
+      };
+      arm();
     },
     [logout],
   );

@@ -20,6 +20,26 @@ type FormValues = z.infer<typeof schema>;
 
 export const DEMO_CREDENTIALS = { email: 'demo@promptshield.local', password: 'Demo@12345' };
 
+/** Only the email is remembered; passwords are left to the browser's password manager. */
+const REMEMBERED_EMAIL_KEY = 'prompt-shield.remembered-email';
+const rememberedEmail = {
+  get: () => {
+    try {
+      return localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  },
+  set: (email: string | null) => {
+    try {
+      if (email) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    } catch {
+      // storage unavailable (private mode) - nothing to remember
+    }
+  },
+};
+
 export default function LoginPage() {
   useDocumentTitle('Sign in');
   const { login } = useAuth();
@@ -28,17 +48,20 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const deployment = useDeploymentStatus();
+  const [initialEmail] = useState(rememberedEmail.get);
+  const [remember, setRemember] = useState(true);
   const {
     register,
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: initialEmail, password: '' } });
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     try {
       await login(values.email, values.password);
+      rememberedEmail.set(remember ? values.email.trim() : null);
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from && from !== '/login' ? from : '/dashboard', { replace: true });
     } catch (error) {
@@ -63,7 +86,7 @@ export default function LoginPage() {
           <input
             id="email"
             type="email"
-            autoComplete="email"
+            autoComplete="username"
             className={inputClasses}
             aria-invalid={!!errors.email}
             aria-describedby={errors.email ? 'email-error' : undefined}
@@ -75,12 +98,22 @@ export default function LoginPage() {
             id="password"
             type="password"
             autoComplete="current-password"
+            autoFocus={Boolean(initialEmail)}
             className={inputClasses}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'password-error' : undefined}
             {...register('password')}
           />
         </Field>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+            className="h-4 w-4 rounded border-white/20 bg-transparent accent-cyan-400"
+          />
+          Remember me on this device
+        </label>
         {serverError && (
           <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
             {serverError}

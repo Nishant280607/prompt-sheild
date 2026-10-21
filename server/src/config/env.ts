@@ -43,7 +43,7 @@ const EnvSchema = z.object({
   TURSO_AUTH_TOKEN: optionalString,
   POSTGRES_URL: optionalString,
   JWT_SECRET: optionalString,
-  JWT_EXPIRES_IN: z.string().default('8h'),
+  JWT_EXPIRES_IN: z.string().default('30d'),
   BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
   DEMO_ACCOUNT: booleanFlag('true'),
   TRUST_PROXY: optionalString,
