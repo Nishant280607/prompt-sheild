@@ -56,7 +56,7 @@ export default function RegisterPage() {
 
   const fields: Array<{ name: keyof FormValues; label: string; type: string; autoComplete: string; hint?: string }> = [
     { name: 'name', label: 'Full name', type: 'text', autoComplete: 'name' },
-    { name: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
+    { name: 'email', label: 'Email', type: 'email', autoComplete: 'username' },
     { name: 'password', label: 'Password', type: 'password', autoComplete: 'new-password', hint: 'At least 8 characters with a letter and a number.' },
     { name: 'confirmPassword', label: 'Confirm password', type: 'password', autoComplete: 'new-password' },
   ];
