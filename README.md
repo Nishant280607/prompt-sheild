@@ -188,7 +188,7 @@ npm run dev          # starts API (http://localhost:5000) and UI (http://localho
 | `TRUST_PROXY`                     | `1` on Vercel, else off    | Express `trust proxy` (client IP for rate limits)  |
 | `AI_PROVIDER`                     | `auto`                     | `auto` \| `local` \| `openai` \| `gemini`          |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | empty / `gpt-4o-mini`      | Optional AI Enhanced mode                          |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | empty / `gemini-2.5-flash` | Optional AI Enhanced mode                          |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | empty / `gemini-3.8-flash` | Optional AI Enhanced mode                          |
 | `TOKEN_PRICE_PER_MILLION_USD`     | `0.5`                      | Reference price for the illustrative cost estimate |
 | `MAX_UPLOAD_BYTES`                | `262144`                   | Upload size limit                                  |
 
