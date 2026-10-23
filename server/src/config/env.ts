@@ -52,7 +52,7 @@ const EnvSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   GEMINI_API_KEY: z.string().default(''),
   GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
-  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(20000),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(45000),
   TOKEN_PRICE_PER_MILLION_USD: z.coerce.number().min(0).default(0.5),
   MAX_UPLOAD_BYTES: z.coerce
     .number()

@@ -6,10 +6,15 @@ import { buildReviewUserMessage, parseReviewResponse, REVIEW_SYSTEM_PROMPT } fro
 const FALLBACK_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite'];
 /** Temporary errors worth retrying: rate limit and server overload. */
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+/** Status used here for a request that timed out or could not connect. */
+const TIMEOUT = 408;
 /** Wait before each retry of the same model. */
 const RETRY_DELAYS_MS = [800, 2000];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Models that rejected `thinkingConfig` (older models), so it is not sent to them again. */
+const noThinkingConfig = new Set<string>();
 
 interface GenerateOptions {
   temperature: number;
@@ -40,7 +45,8 @@ export class GeminiProvider implements AIProvider {
         const result = await this.request(model, system, user, options);
         if (typeof result === 'string') return result;
         lastStatus = result.status;
-        if (result.status === 404) break; // model retired or unknown: try the next one
+        // Retired/unknown model, or too slow this time: go straight to the next (lighter) model.
+        if (result.status === 404 || result.status === TIMEOUT) break;
         if (!RETRYABLE.has(result.status)) {
           throw new AIProviderError(`Gemini request failed (HTTP ${result.status}).`);
         }
@@ -60,21 +66,33 @@ export class GeminiProvider implements AIProvider {
     options: GenerateOptions,
   ): Promise<string | { status: number }> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-    const response = await fetch(url, {
-      method: 'POST',
-      // The key is sent in a header rather than the URL so it never appears in request logs.
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig: {
-          temperature: options.temperature,
-          maxOutputTokens: options.maxTokens,
-          ...(options.json ? { responseMimeType: 'application/json' } : {}),
-        },
-      }),
-      signal: AbortSignal.timeout(this.timeoutMs),
-    });
+    // Low thinking keeps Gemini 3 models fast; models that do not accept it get a plain request.
+    const thinking = !noThinkingConfig.has(model);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        // The key is sent in a header rather than the URL so it never appears in request logs.
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+          generationConfig: {
+            temperature: options.temperature,
+            maxOutputTokens: options.maxTokens,
+            ...(options.json ? { responseMimeType: 'application/json' } : {}),
+            ...(thinking ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+          },
+        }),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch {
+      return { status: TIMEOUT }; // timed out or network error
+    }
+    if (response.status === 400 && thinking) {
+      noThinkingConfig.add(model);
+      return this.request(model, system, user, options);
+    }
     if (!response.ok) return { status: response.status };
 
     const data = (await response.json()) as {
@@ -95,10 +113,11 @@ export class GeminiProvider implements AIProvider {
   }
 
   async sampleResponses(systemPrompt: string, userMessage: string, samples: number): Promise<string[]> {
-    const responses: string[] = [];
-    for (let i = 0; i < samples; i += 1) {
-      responses.push(await this.generate(systemPrompt, userMessage, { temperature: 0.7, maxTokens: 512 }));
-    }
-    return responses;
+    // The samples are independent, so they run in parallel to keep the scan fast.
+    return Promise.all(
+      Array.from({ length: samples }, () =>
+        this.generate(systemPrompt, userMessage, { temperature: 0.7, maxTokens: 512 }),
+      ),
+    );
   }
 }
